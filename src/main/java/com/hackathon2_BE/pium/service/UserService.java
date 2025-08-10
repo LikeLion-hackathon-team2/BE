@@ -2,13 +2,18 @@ package com.hackathon2_BE.pium.service;
 
 import java.time.LocalDateTime;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.hackathon2_BE.pium.model.User;
 import com.hackathon2_BE.pium.model.UserDTO;
+import com.hackathon2_BE.pium.repository.UserRepository;
 
 @Service
 public class UserService {
+
+    @Autowired
+    private UserRepository userRepository;
 
     public User signup(UserDTO userDTO) {
         // 유효성 검증
@@ -23,16 +28,14 @@ public class UserService {
         }
 
         // 실제 회원가입 처리 로직 (예: 데이터베이스에 저장)
-        Long generatedId = 1001L;  // 예시로 설정된 ID
-        LocalDateTime createdAt = LocalDateTime.now();  // 회원가입 시점
+        User user = new User();
+        user.setUsername(userDTO.getUsername());
+        user.setPassword(userDTO.getPassword());
+        user.setRole(userDTO.getRole());
+        user.setCreatedAt(LocalDateTime.now());  // 회원가입 시점
 
-        return new User(
-                generatedId,           // 예시로 설정된 ID
-                userDTO.getUsername(),
-                userDTO.getPassword(),
-                userDTO.getRole(),
-                createdAt              // 회원가입 시점
-        );
+        // 데이터베이스에 저장 (ID는 자동 생성됨)
+        return userRepository.save(user);
     }
 
     // 유효한 아이디인지 체크
