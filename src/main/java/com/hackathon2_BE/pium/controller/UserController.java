@@ -8,9 +8,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.hackathon2_BE.pium.dto.UserDTO;
 import com.hackathon2_BE.pium.model.ApiResponse;
 import com.hackathon2_BE.pium.model.User;
-import com.hackathon2_BE.pium.model.UserDTO;
 import com.hackathon2_BE.pium.service.InvalidInputException;
 import com.hackathon2_BE.pium.service.UserService;
 import com.hackathon2_BE.pium.service.UsernameAlreadyExistsException;

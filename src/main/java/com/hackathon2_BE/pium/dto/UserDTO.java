@@ -1,9 +1,10 @@
-package com.hackathon2_BE.pium.model;
+package com.hackathon2_BE.pium.dto;
 
 public class UserDTO {
     private String username;
     private String password;
     private String role;
+    private String phoneNumber;
 
     // 기본 생성자 (Jackson 역직렬화용)
     public UserDTO() { }
@@ -13,6 +14,7 @@ public class UserDTO {
         this.username = username;
         this.password = password;
         this.role = role;
+        this.phoneNumber = phoneNumber;
     }
 
     public String getUsername() { return username; }
@@ -23,4 +25,7 @@ public class UserDTO {
 
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
+
+    public String getPhoneNumber() { return phoneNumber; }
+    public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
 }

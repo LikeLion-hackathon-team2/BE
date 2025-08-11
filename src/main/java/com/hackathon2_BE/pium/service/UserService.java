@@ -5,8 +5,8 @@ import java.time.LocalDateTime;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.hackathon2_BE.pium.dto.UserDTO;
 import com.hackathon2_BE.pium.model.User;
-import com.hackathon2_BE.pium.model.UserDTO;
 import com.hackathon2_BE.pium.repository.UserRepository;
 
 @Service
@@ -25,6 +25,11 @@ public class UserService {
         }
         if (!isValidRole(userDTO.getRole())) {
             throw new InvalidInputException("role은 'consumer' 또는 'seller'만 허용됩니다.");
+        }
+        String rawPhone = userDTO.getPhoneNumber();
+        String normalizedPhone = normalizePhone(rawPhone); // 숫자만 추출
+        if (!isValidPhone(normalizedPhone)) {
+            throw new InvalidInputException("전화번호는 하이픈(-) 없이 숫자 10~11자리여야 합니다.");
         }
 
         // 실제 회원가입 처리 로직 (예: 데이터베이스에 저장)
@@ -55,4 +60,14 @@ public class UserService {
         // role은 'consumer' 또는 'seller'만 허용
         return "consumer".equals(role) || "seller".equals(role);
     }
+
+    private String normalizePhone(String raw) {
+        if (raw == null) return "";
+        return raw.replaceAll("\\D", ""); // 숫자만
+    }
+
+    private boolean isValidPhone(String digitsOnly) {
+        return digitsOnly != null && digitsOnly.matches("^\\d{10,11}$");
+    }
+
 }

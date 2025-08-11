@@ -17,6 +17,7 @@ public class User {
     private String password;
     private String role;
     private String businessNumber;
+    private String phoneNumber;
     private LocalDateTime createdAt;
 
     // 생성자
@@ -25,6 +26,7 @@ public class User {
         this.username = username;
         this.password = password;
         this.role = role;
+        this.phoneNumber = phoneNumber;
         this.createdAt = createdAt;
     }
 
@@ -70,6 +72,14 @@ public class User {
 
     public void setBusinessNumber(String businessNumber) {
         this.businessNumber = businessNumber;
+    }
+
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+    
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
     }
 
     public LocalDateTime getCreatedAt() {
