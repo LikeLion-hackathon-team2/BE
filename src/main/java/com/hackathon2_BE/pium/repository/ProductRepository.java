@@ -1,4 +1,7 @@
 package com.hackathon2_BE.pium.repository;
 
-public interface ProductRepository {
+import com.hackathon2_BE.pium.entity.Product;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface ProductRepository extends JpaRepository<Long, Product> {
 }
