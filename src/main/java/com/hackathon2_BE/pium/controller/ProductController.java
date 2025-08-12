@@ -1,6 +1,6 @@
 package com.hackathon2_BE.pium.controller;
 
-import com.hackathon2_BE.pium.config.ApiResponse;
+import com.hackathon2_BE.pium.dto.ApiResponse;
 import com.hackathon2_BE.pium.entity.Product;
 import com.hackathon2_BE.pium.service.ProductService;
 import lombok.RequiredArgsConstructor;

@@ -1,4 +1,4 @@
-package com.hackathon2_BE.pium.config;
+package com.hackathon2_BE.pium.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
