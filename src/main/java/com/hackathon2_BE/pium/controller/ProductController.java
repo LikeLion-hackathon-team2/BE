@@ -1,6 +1,7 @@
 package com.hackathon2_BE.pium.controller;
 
 import com.hackathon2_BE.pium.dto.ApiResponse;
+import com.hackathon2_BE.pium.dto.ProductOptionResponse;
 import com.hackathon2_BE.pium.entity.Product;
 import com.hackathon2_BE.pium.service.ProductService;
 import lombok.RequiredArgsConstructor;
@@ -47,5 +48,13 @@ public class ProductController {
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    // 3-1) 상품 구매 옵션 조히
+    @GetMapping("/{id}/options")
+    public ResponseEntity<ApiResponse<ProductOptionResponse>> getOptions(@PathVariable Long id) {
+        ProductOptionResponse data = productService.getProductOptions(id);
+        var body = new ApiResponse<>(true, "OK", "옵션 정보", data);
+        return ResponseEntity.ok(body);
     }
 }
