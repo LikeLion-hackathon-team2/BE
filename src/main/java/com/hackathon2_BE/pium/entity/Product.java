@@ -30,4 +30,18 @@ public class Product {
 
     private LocalDateTime createdAt;
 
+    @Column(name = "unit_label", length = 20)
+    private String unitLabel;
+
+    @Column(name = "presets_csv", length = 100)
+    private String presetsCsv;
+
+    @Column(name = "quantity_min")
+    private Integer quantityMin;
+
+    @Column(name = "quantity_max")
+    private Integer quantityMax;
+
+    @Column(name = "quantity_step")
+    private Integer quantityStep;
 }

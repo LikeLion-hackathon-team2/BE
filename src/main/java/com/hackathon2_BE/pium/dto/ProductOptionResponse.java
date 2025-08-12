@@ -1,20 +1,16 @@
 package com.hackathon2_BE.pium.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
-import java.util.Map;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class ProductOptionResponse {
-    private Long productId;
-    private String unitLabel;
-    private Integer unitPrice;
-    private Integer stockRemaining;
-    private List<Integer> presets;
-    private Map<String, Integer> quantity;
+public record ProductOptionResponse(
+        @JsonProperty("product_id") Long productId,
+        @JsonProperty("unit_label") String unitLabel,
+        @JsonProperty("unit_price") Integer unitPrice,
+        @JsonProperty("stock_remaining") Integer stockRemaining,
+        List<Integer> presets,
+        Quantity quantity
+) {
+    public record Quantity(Integer min, Integer max, Integer step){}
 }
