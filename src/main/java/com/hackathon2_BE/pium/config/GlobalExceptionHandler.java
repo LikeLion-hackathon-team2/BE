@@ -1,6 +1,7 @@
 package com.hackathon2_BE.pium.config;
 
 import com.hackathon2_BE.pium.dto.ApiErrorResponse;
+import com.hackathon2_BE.pium.exception.InvalidInputException;
 import com.hackathon2_BE.pium.exception.RateLimitException;
 import com.hackathon2_BE.pium.exception.ResourceNotFoundException;
 import org.springframework.http.HttpStatus;
@@ -10,6 +11,20 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
+
+    // 400 INVALID_INPUT
+    @ExceptionHandler(InvalidInputException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalid(InvalidInputException ex){
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiErrorResponse.of("INVALID_INPUT", ex.getMessage()));
+    }
+
+    // 401 UNAUTHORIZED (시큐리티 사용 시)
+    @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
+    public ResponseEntity<ApiErrorResponse> handleAuth(org.springframework.security.core.AuthenticationException ex){
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiErrorResponse.of("UNAUTHORIZED", "인증이 필요합니다."));
+    }
 
     // 404 - 리소스를 찾을 수 없는 경우
     @ExceptionHandler(ResourceNotFoundException.class)
