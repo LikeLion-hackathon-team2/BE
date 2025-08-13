@@ -4,6 +4,8 @@ import com.hackathon2_BE.pium.dto.ApiErrorResponse;
 import com.hackathon2_BE.pium.exception.InvalidInputException;
 import com.hackathon2_BE.pium.exception.RateLimitException;
 import com.hackathon2_BE.pium.exception.ResourceNotFoundException;
+import com.hackathon2_BE.pium.exception.UsernameAlreadyExistsException;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -31,6 +33,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleNotFound(ResourceNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiErrorResponse.of("NOT_FOUND", ex.getMessage()));
+    }
+
+    // 409 - 중복 아이디
+    @ExceptionHandler(UsernameAlreadyExistsException.class)
+    public ResponseEntity<ApiErrorResponse> handleUsernameAlreadyExistsException(UsernameAlreadyExistsException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiErrorResponse.of("CONFLICT", ex.getMessage()));
     }
 
     // 429 - 요청 제한
