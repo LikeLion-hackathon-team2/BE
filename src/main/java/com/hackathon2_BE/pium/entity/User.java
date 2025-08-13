@@ -21,11 +21,12 @@ public class User {
     private LocalDateTime createdAt;
 
     // 생성자
-    public User(Long id, String username, String password, String role, LocalDateTime createdAt) {
+    public User(Long id, String username, String password, String role, String phoneNumber, LocalDateTime createdAt) {
         this.id = id;
         this.username = username;
         this.password = password;
         this.role = role;
+        this.businessNumber = businessNumber;
         this.phoneNumber = phoneNumber;
         this.createdAt = createdAt;
     }

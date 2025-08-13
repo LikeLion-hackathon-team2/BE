@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import com.hackathon2_BE.pium.dto.UserDTO;
 import com.hackathon2_BE.pium.entity.User;
 import com.hackathon2_BE.pium.repository.UserRepository;
+import com.hackathon2_BE.pium.exception.InvalidInputException;
 
 @Service
 public class UserService {
@@ -32,12 +33,30 @@ public class UserService {
             throw new InvalidInputException("전화번호는 하이픈(-) 없이 숫자 10~11자리여야 합니다.");
         }
 
+        // 판매자일 경우 businessNumber 검증
+        if ("seller".equals(userDTO.getRole())) {
+            String rawBusinessNumber = userDTO.getBusinessNumber();
+            String normalizedBusinessNumber = normalizeBusinessNumber(rawBusinessNumber); // 하이픈 제거
+            if (normalizedBusinessNumber == null || normalizedBusinessNumber.isEmpty()) {
+                throw new InvalidInputException("판매자 가입 시 사업자 번호는 필수입니다.");
+            }
+            // 사업자 번호에 대한 형식 검증
+            if (!isValidBusinessNumber(normalizedBusinessNumber)) {
+                throw new InvalidInputException("유효한 사업자 번호를 입력하세요.");
+            }
+        }
+
         // 실제 회원가입 처리 로직 (예: 데이터베이스에 저장)
         User user = new User();
         user.setUsername(userDTO.getUsername());
         user.setPassword(userDTO.getPassword());
         user.setRole(userDTO.getRole());
+        user.setPhoneNumber(userDTO.getPhoneNumber());
         user.setCreatedAt(LocalDateTime.now());  // 회원가입 시점
+        
+        if ("seller".equals(userDTO.getRole())) {
+            user.setBusinessNumber(userDTO.getBusinessNumber());
+        }
 
         // 데이터베이스에 저장 (ID는 자동 생성됨)
         return userRepository.save(user);
@@ -70,4 +89,13 @@ public class UserService {
         return digitsOnly != null && digitsOnly.matches("^\\d{10,11}$");
     }
 
+    // 유효한 사업자 번호인지 체크 (하이픈 제거 후 숫자 10자리)
+    private String normalizeBusinessNumber(String raw) {
+        if (raw == null) return "";
+        return raw.replaceAll("\\D", ""); // 하이픈 및 비숫자 문자 제거
+    }
+
+    private boolean isValidBusinessNumber(String businessNumber) {
+        return businessNumber != null && businessNumber.matches("^\\d{10}$"); // 사업자 번호는 10자리 숫자
+    }
 }

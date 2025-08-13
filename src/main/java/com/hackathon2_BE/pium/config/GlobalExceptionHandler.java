@@ -1,7 +1,6 @@
 package com.hackathon2_BE.pium.config;
 
 import com.hackathon2_BE.pium.dto.ApiErrorResponse;
-import com.hackathon2_BE.pium.dto.ApiResponse;
 import com.hackathon2_BE.pium.exception.InvalidInputException;
 import com.hackathon2_BE.pium.exception.RateLimitException;
 import com.hackathon2_BE.pium.exception.ResourceNotFoundException;
