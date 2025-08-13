@@ -9,11 +9,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.hackathon2_BE.pium.dto.UserDTO;
+import com.hackathon2_BE.pium.entity.User;
+import com.hackathon2_BE.pium.exception.UsernameAlreadyExistsException;
 import com.hackathon2_BE.pium.model.ApiResponse;
-import com.hackathon2_BE.pium.model.User;
 import com.hackathon2_BE.pium.service.InvalidInputException;
 import com.hackathon2_BE.pium.service.UserService;
-import com.hackathon2_BE.pium.service.UsernameAlreadyExistsException;
 
 @RestController
 @RequestMapping("/api/user")

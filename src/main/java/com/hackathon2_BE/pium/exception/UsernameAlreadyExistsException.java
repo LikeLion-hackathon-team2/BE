@@ -1,4 +1,4 @@
-package com.hackathon2_BE.pium.service;
+package com.hackathon2_BE.pium.exception;
 
 public class UsernameAlreadyExistsException extends RuntimeException {
     public UsernameAlreadyExistsException(String message) {

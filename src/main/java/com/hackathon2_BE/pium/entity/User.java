@@ -1,4 +1,4 @@
-package com.hackathon2_BE.pium.model;
+package com.hackathon2_BE.pium.entity;
 
 import java.time.LocalDateTime;
 

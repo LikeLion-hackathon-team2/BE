@@ -6,7 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.hackathon2_BE.pium.dto.UserDTO;
-import com.hackathon2_BE.pium.model.User;
+import com.hackathon2_BE.pium.entity.User;
 import com.hackathon2_BE.pium.repository.UserRepository;
 
 @Service
