@@ -44,4 +44,10 @@ public class Product {
 
     @Column(name = "quantity_step")
     private Integer quantityStep;
+
+    @Column(name = "image_main_url", length = 500)
+    private String imageMainUrl;
+
+    @Column(name = "shop_name", length = 100)
+    private String shopName;
 }
