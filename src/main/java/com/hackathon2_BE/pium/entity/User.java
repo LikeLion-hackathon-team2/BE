@@ -47,4 +47,5 @@ public class User {
     @LastModifiedDate
     @Column(nullable = false)
     private LocalDateTime updatedAt; // 최근 수정 시각
+
 }

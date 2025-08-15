@@ -26,6 +26,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
 
     // ===================== 회원가입 =====================
+    
     @Transactional
     public User signup(UserDTO userDTO) {
 
@@ -35,14 +36,14 @@ public class UserService {
             throw new InvalidInputException("비밀번호는 8~64자이며 영문과 숫자를 포함해야 합니다.");
         if (!isValidRole(userDTO.getRole()))
             throw new InvalidInputException("role은 'consumer' 또는 'seller'만 허용됩니다.");
-
+      
         if (userRepository.existsByUsername(userDTO.getUsername()))
             throw new UsernameAlreadyExistsException("이미 사용 중인 아이디입니다.");
 
         String normalizedPhone = normalizePhone(userDTO.getPhoneNumber());
         if (!isValidPhone(normalizedPhone))
             throw new InvalidInputException("전화번호는 숫자 10~11자리여야 합니다.");
-
+      
         boolean isSeller = "seller".equalsIgnoreCase(userDTO.getRole());
         String normalizedBusinessNumber = null;
         if (isSeller) {
@@ -53,9 +54,10 @@ public class UserService {
                 throw new InvalidInputException("이미 등록된 사업자 번호입니다.");
         }
 
+
         User.Role roleEnum = isSeller ? User.Role.SELLER : User.Role.CONSUMER;
         String hashedPw = passwordEncoder.encode(userDTO.getPassword());
-
+      
         User user = User.builder()
                 .username(userDTO.getUsername())
                 .password(hashedPw)
@@ -66,6 +68,7 @@ public class UserService {
 
         return userRepository.save(user);
     }
+
 
     // ===================== 내 정보 조회 =====================
     @Transactional(readOnly = true)
