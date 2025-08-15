@@ -1,93 +1,44 @@
 package com.hackathon2_BE.pium.entity;
 
+import jakarta.persistence.*;
+import lombok.*;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
 import java.time.LocalDateTime;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-
-@Entity  // JPA 엔티티로 지정
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "users")
+@EntityListeners(AuditingEntityListener.class)
 public class User {
 
-    @Id  // 기본 키로 설정
-    @GeneratedValue(strategy = GenerationType.IDENTITY)  // 자동 증가 전략 설정
+    public enum Role { CONSUMER, SELLER }
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(unique = true, nullable = false, length = 20)
     private String username;
+
+    @Column(nullable = false, length = 100)
     private String password;
-    private String role;
-    private String businessNumber;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private Role role;
+
+    @Column(unique = true, length = 10)
+    private String businessNumber; // 사업자등록번호 (10자리, 숫자만)
+
+    @Column(nullable = false, length = 11)
     private String phoneNumber;
+
+    @CreatedDate
+    @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
-
-    // 생성자
-    public User(Long id, String username, String password, String role, String phoneNumber, LocalDateTime createdAt) {
-        this.id = id;
-        this.username = username;
-        this.password = password;
-        this.role = role;
-        this.businessNumber = businessNumber;
-        this.phoneNumber = phoneNumber;
-        this.createdAt = createdAt;
-    }
-
-    // 기본 생성자 (JPA에서 필요)
-    public User() {}
-
-    // Getter와 Setter 메소드
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public String getRole() {
-        return role;
-    }
-
-    public void setRole(String role) {
-        this.role = role;
-    }
-
-    public String getBusinessNumber() {
-        return businessNumber;
-    }
-
-    public void setBusinessNumber(String businessNumber) {
-        this.businessNumber = businessNumber;
-    }
-
-    public String getPhoneNumber() {
-        return phoneNumber;
-    }
-    
-    public void setPhoneNumber(String phoneNumber) {
-        this.phoneNumber = phoneNumber;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
 }
