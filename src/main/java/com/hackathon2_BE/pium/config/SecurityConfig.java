@@ -4,23 +4,31 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
+    // 회원가입 시 해싱
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf(csrf -> csrf.disable())  // CSRF 보호 비활성화
-                .authorizeHttpRequests(requests -> requests 
-                        .requestMatchers("/api/user/signup").permitAll() // 회원가입은 인증 없이 접근 허용
-                        .anyRequest().authenticated())  // 나머지 요청은 인증 필요
-                .formLogin(login -> login.disable())  // 폼 로그인 비활성화
-                .httpBasic(basic -> basic.disable());  // HTTP 기본 인증 비활성화
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
+    // signup만 허용, 나머지는 인증 필요
+    @Bean
+    public SecurityFilterChain defaultChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable())
+            .authorizeHttpRequests(req -> req
+                .requestMatchers("/api/user/signup").permitAll()
+                .anyRequest().authenticated()
+            )
+            .formLogin(login -> login.disable())
+            .httpBasic(basic -> basic.disable());
         return http.build();
     }
 }
