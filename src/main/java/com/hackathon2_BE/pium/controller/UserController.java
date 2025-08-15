@@ -1,20 +1,15 @@
 package com.hackathon2_BE.pium.controller;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import lombok.RequiredArgsConstructor;
 
-import com.hackathon2_BE.pium.dto.ApiResponse; // ⬅ 추가
+import com.hackathon2_BE.pium.dto.ApiResponse;
 import com.hackathon2_BE.pium.dto.MeResponse;
 import com.hackathon2_BE.pium.dto.UserDTO;
 import com.hackathon2_BE.pium.dto.UserSignupResponse;
 import com.hackathon2_BE.pium.entity.User;
 import com.hackathon2_BE.pium.service.UserService;
-
-import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/user")
