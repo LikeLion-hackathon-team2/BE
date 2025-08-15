@@ -1,8 +1,9 @@
 package com.hackathon2_BE.pium.dto;
 
+import java.time.LocalDateTime;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.hackathon2_BE.pium.entity.User;
-import java.time.LocalDateTime;
 
 public class MeResponse {
     private Long id;
@@ -27,7 +28,6 @@ public class MeResponse {
         m.phoneNumber = u.getPhoneNumber();
         m.businessNumber = u.getBusinessNumber();
         m.createdAt = u.getCreatedAt();
-        // updatedAt이 엔티티에 없다면 createdAt으로 대체하거나 엔티티에 필드 추가
         m.updatedAt = (u.getUpdatedAt() != null) ? u.getUpdatedAt() : u.getCreatedAt();
         return m;
     }
