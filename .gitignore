@@ -38,8 +38,5 @@ out/
 
 ### yml ###
 src/main/resources/application.yml
-
-### properties ###
-src/main/resources/application.properties
-src/main/resources/application-*.properties
-!src/main/resources/application-example.properties
+# Local config
+src/main/resources/application.yml
