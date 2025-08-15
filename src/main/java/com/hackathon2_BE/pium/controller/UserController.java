@@ -20,7 +20,7 @@ public class UserController {
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<UserSignupResponse>> signup(@RequestBody UserDTO userDTO) {
         User user = userService.signup(userDTO);
-        UserSignupResponse data = UserSignupResponse.from(user); // ⬅ 변환 편의 메서드 사용
+        UserSignupResponse data = UserSignupResponse.from(user);
         return ResponseEntity.status(201)
                 .body(new ApiResponse<>(true, "CREATED", "회원가입 완료", data));
     }
