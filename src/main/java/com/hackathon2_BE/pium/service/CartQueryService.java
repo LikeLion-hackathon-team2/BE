@@ -43,7 +43,7 @@ public class CartQueryService {
         // 4) product 일괄 조회 후 매핑
         Set<Long> productIds = items.stream().map(CartItem::getProductId).collect(Collectors.toSet());
         Map<Long, Product> productMap = productRepository.findAllById(productIds)
-                .stream().collect(Collectors.toMap(Product::getProductId, p -> p));
+                .stream().collect(Collectors.toMap(p -> p.getId(), p -> p));
 
         // 5) DTO 변환
         return items.stream().map(ci -> {
@@ -56,7 +56,7 @@ public class CartQueryService {
 
             return new CartItemView(
                     ci.getCartItemId(),
-                    p.getProductId(),
+                    p.getId(),
                     p.getName(),
                     ci.getQuantity(),
                     ci.getUnitPrice(),         // 담을 당시 스냅샷 단가

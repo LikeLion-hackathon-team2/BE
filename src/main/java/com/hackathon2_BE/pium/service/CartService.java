@@ -43,7 +43,7 @@ public class CartService {
 
         CartItem ci = new CartItem();
         ci.setUserId(userId);
-        ci.setProductId(p.getProductId());
+        ci.setProductId(p.getId());
         ci.setQuantity(req.quantity());
         ci.setUnitPrice(unitPrice);
         ci.setSubtotal(subtotal);
