@@ -95,7 +95,7 @@ public class GroupPurchaseService {
         return GroupPurchaseDetailResponse.builder()
                 .id(g.getId())
                 .leaderName(g.getLeader().getUsername())
-                .productId(p.getProductId())
+                .productId(p.getId())
                 .productName(p.getName())
                 .price(p.getPrice())
                 .imageUrl(p.getImageMainUrl())

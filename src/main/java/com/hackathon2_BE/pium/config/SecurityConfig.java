@@ -63,6 +63,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/user/signup", "/api/auth/login").permitAll()
                         // TODO: 개발 편의로 열어둔 API, 배포 전 정리 권장
                         .requestMatchers("/api/product/**").permitAll()
+                        .requestMatchers("/api/seller/**").permitAll()
                         // 나머지는 인증 필요
                         .anyRequest().authenticated()
                 )

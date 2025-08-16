@@ -1,5 +1,6 @@
 package com.hackathon2_BE.pium.controller;
 
+import com.hackathon2_BE.pium.dto.UploadProductImageResponse;
 import com.hackathon2_BE.pium.dto.ApiResponse;
 import com.hackathon2_BE.pium.dto.CreateProductRequest;
 import com.hackathon2_BE.pium.dto.ProductResponse;
@@ -8,12 +9,16 @@ import com.hackathon2_BE.pium.exception.UnauthenticatedException;
 import com.hackathon2_BE.pium.security.CustomUserDetails;
 import com.hackathon2_BE.pium.service.ProductService;
 
+import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
@@ -36,6 +41,29 @@ public class SellerProductController {
 
         ApiResponse<Map<String, Object>> api =
                 new ApiResponse<>(true, "CREATED", "상품이 생성되었습니다.", Map.of("product", body));
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(api);
+    }
+
+    @PostMapping(
+            value = "/{productId}/images",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
+    @Transactional
+    public ResponseEntity<ApiResponse<UploadProductImageResponse>> uploadProductImage(
+            @PathVariable("productId") Long productId,
+            @RequestPart("file") MultipartFile file,
+            @RequestParam(name = "is_main", defaultValue = "false") boolean isMain,
+            @RequestParam(name = "run_ai", defaultValue = "true") boolean runAi,
+            Authentication authentication
+    ) {
+        Long sellerId = extractUserId(authentication);
+
+        UploadProductImageResponse data =
+                productService.uploadProductImage(sellerId, productId, file, isMain, runAi);
+
+        ApiResponse<UploadProductImageResponse> api =
+                new ApiResponse<>(true, "CREATED", "이미지가 업로드되었습니다.", data);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(api);
     }
