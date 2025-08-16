@@ -23,12 +23,11 @@ public class MeResponse {
         MeResponse m = new MeResponse();
         m.id = u.getId();
         m.username = u.getUsername();
-        m.role = u.getRole();
+        m.role = u.getRole() != null ? u.getRole().name() : null;
         m.phoneNumber = u.getPhoneNumber();
         m.businessNumber = u.getBusinessNumber();
         m.createdAt = u.getCreatedAt();
-        // updatedAt이 엔티티에 없다면 createdAt으로 대체하거나 엔티티에 필드 추가
-        m.updatedAt = (u.getUpdatedAt() != null) ? u.getUpdatedAt() : u.getCreatedAt();
+        m.updatedAt = u.getCreatedAt();
         return m;
     }
 
