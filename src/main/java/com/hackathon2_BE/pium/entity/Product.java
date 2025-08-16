@@ -2,6 +2,7 @@ package com.hackathon2_BE.pium.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -10,17 +11,24 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "product")
-@Getter @Setter
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
-
+@Builder
 public class Product {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long productId;
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     private Long userId;
     private Long gradeId;
-    private Long categoryId;
+
+    // 카테고리(FK)
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "category_id")
+    private Category category;
 
     private String name;
     private String info;
@@ -30,6 +38,11 @@ public class Product {
 
     private LocalDateTime createdAt;
 
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) createdAt = java.time.LocalDateTime.now();
+    }
+    
     @Column(name = "unit_label", length = 20)
     private String unitLabel;
 

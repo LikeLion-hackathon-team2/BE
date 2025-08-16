@@ -1,0 +1,20 @@
+# VCS / IDE / OS
+.git
+.gitignore
+.idea
+.vscode
+.DS_Store
+Thumbs.db
+
+# Gradle cache / outputs
+.gradle
+out
+build
+# build는 제외하지만 jar만 다시 포함
+!build/libs/*.jar
+
+# Frontend (있으면)
+node_modules
+
+# Secrets (compose는 .env를 따로 읽으니 여기서 제외 OK)
+.env

@@ -29,13 +29,15 @@ public class MeResponse {
         m.phoneNumber = u.getPhoneNumber();
         m.businessNumber = u.getBusinessNumber();
         m.createdAt = toIsoUtc(u.getCreatedAt());
-        m.updatedAt = toIsoUtc(u.getUpdatedAt());
+        // User 엔티티에 updatedAt이 없으면 createdAt으로 대체
+        m.updatedAt = toIsoUtc(u.getCreatedAt());
         return m;
     }
 
     private static String toIsoUtc(LocalDateTime time) {
         if (time == null) return null;
-        return time.toInstant(ZoneOffset.UTC).toString(); // 2025-08-09T06:20:00Z
+        // LocalDateTime → UTC 기준 ISO-8601 문자열
+        return time.atOffset(ZoneOffset.UTC).toInstant().toString();
     }
 
     public Long getId() { return id; }
