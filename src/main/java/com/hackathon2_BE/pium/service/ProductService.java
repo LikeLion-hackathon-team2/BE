@@ -1,7 +1,9 @@
 package com.hackathon2_BE.pium.service;
 
+import com.hackathon2_BE.pium.dto.UploadProductImageResponse;
 import com.hackathon2_BE.pium.dto.CreateProductRequest;
 import com.hackathon2_BE.pium.dto.ProductOptionResponse;
+import com.hackathon2_BE.pium.entity.ProductImage;
 import com.hackathon2_BE.pium.entity.Category;
 import com.hackathon2_BE.pium.entity.Product;
 import com.hackathon2_BE.pium.entity.User;
@@ -9,22 +11,25 @@ import com.hackathon2_BE.pium.exception.InvalidInputException;
 import com.hackathon2_BE.pium.exception.ResourceNotFoundException;
 import com.hackathon2_BE.pium.exception.ForbiddenException;
 import com.hackathon2_BE.pium.exception.UnauthenticatedException;
+import com.hackathon2_BE.pium.repository.ProductImageRepository;
 import com.hackathon2_BE.pium.repository.CategoryRepository;
 import com.hackathon2_BE.pium.repository.ProductRepository;
 import com.hackathon2_BE.pium.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.io.IOException;
+import java.nio.file.*;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +38,10 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
+    private final ProductImageRepository productImageRepository;
+    @Value("${app.upload.dir:uploads}")
+    private String uploadRootDir;
+    private static final Set<String> ALLOWED_EXT = Set.of("jpg", "jpeg", "png", "webp");
 
     // 2-1) 상품 목록/검색/필터
     public Page<Product> getProductList(String keyword, Long categoryId, Pageable pageable){
@@ -131,5 +140,84 @@ public class ProductService {
 
         return productRepository.save(p);
     }
-  
+    
+    // 6-2) 상품 등록(2)-상품 이미지 업로드
+    @Transactional
+    public UploadProductImageResponse uploadProductImage(Long sellerId,
+                                                        Long productId,
+                                                        MultipartFile file,
+                                                        boolean isMain,
+                                                        boolean runAi /* 지금은 사용 안 함 */) {
+        if (file == null || file.isEmpty()) {
+            throw new InvalidInputException("파일이 비어있습니다.");
+        }
+
+        // 파일 검증 (확장자)
+        String original = file.getOriginalFilename();
+        String ext = (original != null && original.contains(".")) ?
+                original.substring(original.lastIndexOf('.') + 1).toLowerCase() : "";
+        if (!ALLOWED_EXT.contains(ext)) {
+            throw new InvalidInputException("지원하지 않는 파일 형식입니다.(jpg/png/webp)");
+        }
+
+        // 상품 조회 + 소유자 검증
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("상품을 찾을 수 없습니다."));
+        if (product.getUserId() == null || !product.getUserId().equals(sellerId)) {
+            throw new ForbiddenException("해당 상품의 소유자가 아닙니다.");
+        }
+
+        // 저장 경로 준비
+        try {
+            Path dir = Paths.get(uploadRootDir, "products", String.valueOf(productId)).toAbsolutePath();
+            Files.createDirectories(dir);
+
+            String newName = UUID.randomUUID().toString().replace("-", "") + "." + ext;
+            Path dest = dir.resolve(newName);
+
+            // 저장
+            file.transferTo(dest.toFile());
+
+            // 정적 접근 URL 구성 (/uploads/** 로 매핑)
+            String url = "/uploads/products/" + productId + "/" + newName;
+
+            // 대표 이미지 플래그 정리
+            if (isMain) {
+                productImageRepository.clearMainByProductId(productId);
+                product.setImageMainUrl(url); // Product 엔티티에 imageMainUrl 필드가 이미 있음
+                productRepository.save(product);
+            }
+
+            // 엔티티 저장
+            ProductImage saved = productImageRepository.save(
+                    ProductImage.builder()
+                            .product(product)
+                            .imageUrl(url)
+                            .isMain(isMain)
+                            .createdAt(LocalDateTime.now())
+                            .build()
+            );
+
+            // 응답 DTO 구성 (AI는 미적용)
+            UploadProductImageResponse.Image imageDto = UploadProductImageResponse.Image.builder()
+                    .image_id(saved.getId())
+                    .image_url(saved.getImageUrl())
+                    .is_main(saved.isMain())
+                    .ai_processed(false)
+                    .build();
+
+            UploadProductImageResponse.ProductInfo productDto = UploadProductImageResponse.ProductInfo.builder()
+                    .product_id(product.getId())
+                    .grade_id(product.getGradeId()) // 지금은 변화 없음(null 그대로)
+                    .build();
+
+            return UploadProductImageResponse.builder()
+                    .image(imageDto)
+                    .product(productDto)
+                    .build();
+
+        } catch (IOException e) {
+            throw new RuntimeException("파일 저장 중 오류가 발생했습니다.", e);
+        }
+    }
 }
