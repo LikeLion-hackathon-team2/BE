@@ -3,6 +3,7 @@ package com.hackathon2_BE.pium.service;
 import com.hackathon2_BE.pium.dto.UploadProductImageResponse;
 import com.hackathon2_BE.pium.dto.CreateProductRequest;
 import com.hackathon2_BE.pium.dto.ProductOptionResponse;
+import com.hackathon2_BE.pium.dto.SellerProductListResponse;
 import com.hackathon2_BE.pium.entity.ProductImage;
 import com.hackathon2_BE.pium.entity.Category;
 import com.hackathon2_BE.pium.entity.Product;
@@ -22,6 +23,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -220,4 +223,97 @@ public class ProductService {
             throw new RuntimeException("파일 저장 중 오류가 발생했습니다.", e);
         }
     }
+
+    // 6-3) 판매자 상품 목록 조회
+    @Transactional(readOnly = true)
+    public SellerProductListResponse getSellerProducts(Long sellerId,
+                                                       String q,
+                                                       Long categoryId,
+                                                       String status,
+                                                       String sort,
+                                                       Integer page,
+                                                       Integer size) {
+
+        int p = (page == null || page < 1) ? 1 : page;
+        int s = (size == null) ? 20 : size;
+        if (s < 1 || s > 100) {
+            throw new InvalidInputException("size는 1~100 사이여야 합니다.");
+        }
+
+        String normalizedStatus = null;
+        if (status != null && !status.isBlank()) {
+            switch (status) {
+                case "active", "out_of_stock" -> normalizedStatus = status;
+                case "deleted" -> throw new InvalidInputException("deleted 상태 필터는 아직 지원되지 않습니다.");
+                default -> throw new InvalidInputException("허용되지 않은 상태 값입니다.");
+            }
+        }
+
+        Sort sortObj = switch (sort == null ? "latest" : sort) {
+            case "latest" -> Sort.by(Sort.Direction.DESC, "createdAt");
+            case "price_asc" -> Sort.by(Sort.Direction.ASC, "price");
+            case "price_desc" -> Sort.by(Sort.Direction.DESC, "price");
+            case "stock_asc" -> Sort.by(Sort.Direction.ASC, "stockQuantity");
+            case "stock_desc" -> Sort.by(Sort.Direction.DESC, "stockQuantity");
+            default -> throw new InvalidInputException("허용되지 않은 정렬 값입니다.");
+        };
+
+        PageRequest pageable = PageRequest.of(p - 1, s, sortObj);
+
+        var pageResult = productRepository.findSellerProducts(
+                sellerId,
+                (q == null || q.isBlank()) ? null : q,
+                categoryId,
+                normalizedStatus,
+                pageable
+        );
+
+        var items = pageResult.stream().map(pv -> {
+            var freshness = (pv.getGradeId() == null) ? null :
+                    SellerProductListResponse.Freshness.builder()
+                            .grade_id(pv.getGradeId())
+                            .grade(pv.getGradeId().intValue())
+                            .label(toFreshnessLabel(pv.getGradeId()))
+                            .build();
+
+            String computedStatus = (pv.getStockQuantity() == null || pv.getStockQuantity() == 0)
+                    ? "out_of_stock" : "active";
+
+            return SellerProductListResponse.Item.builder()
+                    .product_id(pv.getId())
+                    .name(pv.getName())
+                    .price(pv.getPrice())
+                    .stock_quantity(pv.getStockQuantity())
+                    .status(computedStatus)
+                    .category_id(pv.getCategory() != null ? pv.getCategory().getId() : null)
+                    .main_image_url(pv.getImageMainUrl())
+                    .freshness(freshness)
+                    .created_at(pv.getCreatedAt())
+                    .updated_at(pv.getUpdatedAt())
+                    .build();
+        }).toList();
+
+        var pagination = SellerProductListResponse.Pagination.builder()
+                .page(p)
+                .size(s)
+                .total(pageResult.getTotalElements())
+                .build();
+
+        return SellerProductListResponse.builder()
+                .items(items)
+                .pagination(pagination)
+                .build();
+    }
+
+    // === 신선도 라벨: 3단계(3=매우 신선, 2=양호, 1=판매임박) ===
+    private String toFreshnessLabel(Long gradeId) {
+        if (gradeId == null) return null;
+        return switch (gradeId.intValue()) {
+            case 3 -> "매우 신선";
+            case 2 -> "양호";
+            case 1 -> "판매임박";
+            default -> null; // 범위 밖은 표시 안 함
+        };
+    }
 }
+

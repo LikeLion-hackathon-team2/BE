@@ -4,6 +4,7 @@ import com.hackathon2_BE.pium.dto.UploadProductImageResponse;
 import com.hackathon2_BE.pium.dto.ApiResponse;
 import com.hackathon2_BE.pium.dto.CreateProductRequest;
 import com.hackathon2_BE.pium.dto.ProductResponse;
+import com.hackathon2_BE.pium.dto.SellerProductListResponse;
 import com.hackathon2_BE.pium.entity.Product;
 import com.hackathon2_BE.pium.exception.UnauthenticatedException;
 import com.hackathon2_BE.pium.security.CustomUserDetails;
@@ -44,6 +45,27 @@ public class SellerProductController {
 
         return ResponseEntity.status(HttpStatus.CREATED).body(api);
     }
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<SellerProductListResponse>> getSellerProducts(
+                @RequestParam(name = "q", required = false) String q,
+                @RequestParam(name = "category_id", required = false) Long categoryId,
+                @RequestParam(name = "status", required = false) String status,   // active | out_of_stock
+                @RequestParam(name = "sort", required = false) String sort,       // latest | price_asc | price_desc | stock_asc | stock_desc
+                @RequestParam(name = "page", required = false) Integer page,      // default=1
+                @RequestParam(name = "size", required = false) Integer size,      // default=20 (max 100)
+                Authentication authentication
+        ) {
+            Long sellerId = extractUserId(authentication);
+
+            SellerProductListResponse data =
+                    productService.getSellerProducts(sellerId, q, categoryId, status, sort, page, size);
+
+            ApiResponse<SellerProductListResponse> api =
+                    new ApiResponse<>(true, "OK", "판매자 상품 목록 조회 성공", data);
+
+            return ResponseEntity.ok(api);
+        }
 
     @PostMapping(
             value = "/{productId}/images",

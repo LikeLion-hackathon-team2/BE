@@ -1,11 +1,16 @@
 package com.hackathon2_BE.pium.repository;
 
-import com.hackathon2_BE.pium.entity.Product;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import com.hackathon2_BE.pium.entity.Product;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
+
+    // 검색/카테고리 조회 메서드
     Page<Product> findByNameContainingIgnoreCaseOrInfoContainingIgnoreCase(
             String nameKeyword,
             String infoKeyword,
@@ -13,4 +18,32 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     );
 
     Page<Product> findByCategory_Id(Long categoryId, Pageable pageable);
+
+    /**
+     * 판매자 상품 목록 조회 (명세: q, category_id, status, sort, page/size)
+     * - status: 'active' | 'out_of_stock' (deleted는 미지원)
+     * - 정렬은 서비스에서 Pageable(Sort)로 처리
+     */
+    
+    @Query("""
+        select p
+        from Product p
+        where p.userId = :userId
+          and (:categoryId is null or p.category.id = :categoryId)
+          and (
+               :kw is null
+               or lower(p.name) like lower(concat('%', :kw, '%'))
+               or lower(p.info) like lower(concat('%', :kw, '%'))
+          )
+          and (
+               :status is null
+               or (:status = 'out_of_stock' and (p.stockQuantity is null or p.stockQuantity = 0))
+               or (:status = 'active' and (p.stockQuantity is not null and p.stockQuantity > 0))
+          )
+        """)
+    Page<Product> findSellerProducts(@Param("userId") Long userId,
+                                     @Param("kw") String keyword,
+                                     @Param("categoryId") Long categoryId,
+                                     @Param("status") String status,
+                                     Pageable pageable);
 }
