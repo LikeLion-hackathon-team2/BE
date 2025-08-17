@@ -37,13 +37,24 @@ public class Product {
     private Integer price;
     private Integer stockQuantity;
 
+    @Column(name = "createdAt", updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "updatedAt")
+    private LocalDateTime updatedAt;
 
     @PrePersist
     protected void onCreate() {
-        if (createdAt == null) createdAt = java.time.LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now();
+        if (this.createdAt == null) this.createdAt = now;
+        this.updatedAt = now;                        // 생성 시에도 updatedAt 채움
     }
     
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();        // 엔티티 변경 시 자동 갱신
+    }
+
     @Column(name = "unit_label", length = 20)
     private String unitLabel;
 
