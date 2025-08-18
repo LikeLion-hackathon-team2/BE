@@ -73,16 +73,15 @@ public class UserService {
     // ===================== 내 정보 조회 =====================
     @Transactional(readOnly = true)
     public MeResponse getMe() {
-        String username = getCurrentUsernameOrThrow();  // SecurityContext에서 로그인 유저 추출
+        String username = getCurrentUsernameOrThrow();
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다."));
-        return MeResponse.from(user);                   // 명세서 포맷으로 변환
+        return MeResponse.from(user);
     }
 
     private String getCurrentUsernameOrThrow() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated() || auth.getName() == null) {
-            // GlobalExceptionHandler에서 401 UNAUTHORIZED로 매핑
             throw new UnauthenticatedException("유효하지 않거나 만료된 토큰입니다.");
         }
         return auth.getName();

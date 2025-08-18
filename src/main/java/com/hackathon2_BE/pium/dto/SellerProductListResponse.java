@@ -20,10 +20,10 @@ public class SellerProductListResponse {
         private String name;
         private Integer price;
         private Integer stock_quantity;
-        private String status;           // active | out_of_stock (deleted는 추후)
+        private String status;
         private Long category_id;
         private String main_image_url;
-        private Freshness freshness;     // { grade_id, grade, label }
+        private Freshness freshness;
         private LocalDateTime created_at;
         private LocalDateTime updated_at;
     }

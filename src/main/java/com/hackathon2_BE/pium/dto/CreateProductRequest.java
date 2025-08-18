@@ -12,5 +12,5 @@ public class CreateProductRequest {
     private Integer price;
     private Integer stockQuantity;
     private String info;
-    private Long categoryId;   // 카테고리 연관 (선택적)
+    private Long categoryId;
 }

@@ -8,7 +8,7 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "category") // 테이블명이 다르면 맞춰 수정
+@Table(name = "category")
 public class Category {
 
     @Id
