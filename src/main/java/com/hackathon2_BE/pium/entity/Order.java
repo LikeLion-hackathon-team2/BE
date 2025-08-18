@@ -27,7 +27,7 @@ public class Order {
     private OrderStatus orderStatus;
     private LocalDate deliveryDate;
     private String deliveryAddress;
-    private LocalDateTime createAt;
+    private LocalDateTime createdAt;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> orderItems = new ArrayList<>();

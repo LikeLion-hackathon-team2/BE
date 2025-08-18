@@ -79,7 +79,7 @@ public class CartController {
                 true,
                 "OK",
                 "장바구니 항목이 삭제되었습니다.",
-                Map.<String, Object>of("cart_item_id", cartItemId) // 🔧 여기만 수정
+                Map.<String, Object>of("cart_item_id", cartItemId) //
         );
         return ResponseEntity.ok(body);
     }

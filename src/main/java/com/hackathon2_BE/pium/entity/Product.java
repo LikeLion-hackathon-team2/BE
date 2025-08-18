@@ -59,7 +59,7 @@ public class Product {
     private String unitLabel;
 
     @Column(name = "presets_csv", length = 100)
-    private String presetsCsv;
+    private String presetsCsv; // 수량 선택의 추천값
 
     @Column(name = "quantity_min")
     private Integer quantityMin;

@@ -41,47 +41,45 @@ public class SecurityConfig {
     ) throws Exception {
 
         http
-                .csrf(csrf -> csrf.disable())
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(req -> req
-                        // Swagger / OpenAPI
-                        .requestMatchers(
-                                "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**",
-                                "/swagger-resources/**", "/webjars/**"
-                        ).permitAll()
-                        // CORS preflight
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        // 공개 엔드포인트
-                        .requestMatchers("/api/user/signup", "/api/auth/login").permitAll()
-                        // TODO: 개발 편의로 열어둔 API — 배포 전 정리 권장
-                        .requestMatchers("/api/product/**").permitAll()
-                        .requestMatchers("/api/seller/**").permitAll()
-                        // 나머지는 인증 필요
-                        .anyRequest().authenticated()
-                )
-                .formLogin(login -> login.disable())
-                .httpBasic(basic -> basic.disable());
+            .csrf(csrf -> csrf.disable())
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(req -> req
+                // Swagger / OpenAPI (전체 허용)
+                .requestMatchers(
+                    "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**",
+                    "/swagger-resources/**", "/webjars/**"
+                ).permitAll()
+                // CORS preflight
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                // 공개 엔드포인트
+                .requestMatchers("/api/user/signup", "/api/auth/login").permitAll()
+                // 개발 편의(배포 전 필요한 범위만 남기기)
+                .requestMatchers("/api/product/**").permitAll()
+                .requestMatchers("/api/seller/**").permitAll()
+                // 나머지는 인증 필요
+                .anyRequest().authenticated()
+            )
+            .formLogin(login -> login.disable())
+            .httpBasic(basic -> basic.disable());
 
-        // JWT 인증 필터
         http.addFilterBefore(
-                new JwtAuthenticationFilter(tokenProvider, userDetailsService),
-                UsernamePasswordAuthenticationFilter.class
+            new JwtAuthenticationFilter(tokenProvider, userDetailsService),
+            UsernamePasswordAuthenticationFilter.class
         );
 
         return http.build();
     }
 
-    /** CORS 설정: FE 오리진(http://localhost:5173)만 허용 */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
-        cfg.setAllowedOrigins(List.of("http://localhost:5173")); // 허용 오리진 고정
+        cfg.setAllowedOrigins(List.of("http://localhost:5173"));
         cfg.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         cfg.setAllowedHeaders(List.of("Authorization","Content-Type","X-Requested-With"));
-        cfg.setExposedHeaders(List.of());         // 필요 시 추가
-        cfg.setAllowCredentials(false);           // JWT를 헤더로 전달 → 보통 false
-        cfg.setMaxAge(3600L);                     // preflight 캐시 1시간
+        cfg.setExposedHeaders(List.of());
+        cfg.setAllowCredentials(false);
+        cfg.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", cfg);
