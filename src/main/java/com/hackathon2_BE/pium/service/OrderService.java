@@ -113,7 +113,7 @@ public class OrderService {
         order.setTotalProductsPrice(preview.totals().products());
         order.setShippingFee(preview.totals().shipping());
         order.setGrandTotal(preview.totals().grandTotal());
-        order.setCreateAt(LocalDateTime.now());
+        order.setCreatedAt(LocalDateTime.now());
         order = orderRepository.save(order);
 
         var cartItems = cartItemRepository.findByCartItemIdInAndUserId(req.cartItemIds(), userId);

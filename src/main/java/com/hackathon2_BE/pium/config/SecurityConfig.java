@@ -49,6 +49,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/user/signup").permitAll()
                         .requestMatchers("/api/auth/login").permitAll()    // 로그인 허용
                         .requestMatchers("/api/product/**").permitAll()    // 개발 중 편의
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll() // 스웨거 접속 허용
                         .anyRequest().authenticated()
                 )
                 .formLogin(login -> login.disable())
