@@ -50,10 +50,10 @@ public class SellerProductController {
     public ResponseEntity<ApiResponse<SellerProductListResponse>> getSellerProducts(
                 @RequestParam(name = "q", required = false) String q,
                 @RequestParam(name = "category_id", required = false) Long categoryId,
-                @RequestParam(name = "status", required = false) String status,   // active | out_of_stock
-                @RequestParam(name = "sort", required = false) String sort,       // latest | price_asc | price_desc | stock_asc | stock_desc
-                @RequestParam(name = "page", required = false) Integer page,      // default=1
-                @RequestParam(name = "size", required = false) Integer size,      // default=20 (max 100)
+                @RequestParam(name = "status", required = false) String status,
+                @RequestParam(name = "sort", required = false) String sort,
+                @RequestParam(name = "page", required = false) Integer page,
+                @RequestParam(name = "size", required = false) Integer size,
                 Authentication authentication
         ) {
             Long sellerId = extractUserId(authentication);
@@ -90,9 +90,6 @@ public class SellerProductController {
         return ResponseEntity.status(HttpStatus.CREATED).body(api);
     }
 
-    /**
-     * Authentication → CustomUserDetails → userId 추출
-     */
     private Long extractUserId(Authentication auth) {
         if (auth == null || auth.getPrincipal() == null) {
             throw new UnauthenticatedException("인증이 필요합니다.");

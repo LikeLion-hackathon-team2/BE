@@ -35,7 +35,7 @@ public class User {
     private Role role;
 
     @Column(unique = true, length = 10)
-    private String businessNumber; // 사업자등록번호 (10자리, 숫자만)
+    private String businessNumber;
 
     @Column(nullable = false, length = 11)
     private String phoneNumber;
@@ -46,6 +46,6 @@ public class User {
 
     @LastModifiedDate
     @Column(nullable = false)
-    private LocalDateTime updatedAt; // 최근 수정 시각
+    private LocalDateTime updatedAt;
 
 }

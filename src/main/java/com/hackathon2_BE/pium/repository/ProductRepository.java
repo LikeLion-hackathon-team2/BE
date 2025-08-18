@@ -19,12 +19,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     Page<Product> findByCategory_Id(Long categoryId, Pageable pageable);
 
-    /**
-     * 판매자 상품 목록 조회 (명세: q, category_id, status, sort, page/size)
-     * - status: 'active' | 'out_of_stock' (deleted는 미지원)
-     * - 정렬은 서비스에서 Pageable(Sort)로 처리
-     */
-    
     @Query("""
         select p
         from Product p

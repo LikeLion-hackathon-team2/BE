@@ -117,12 +117,10 @@ public class ProductService {
             Long cid = req.getCategoryId();
 
             category = categoryRepository.findById(cid).orElseGet(() -> {
-                // name은 NOT NULL일 수 있으므로 기본 이름 만들어줌
                 String generatedName = "카테고리 " + cid;
                 try {
                     categoryRepository.insertWithId(cid, generatedName);
                 } catch (DataIntegrityViolationException e) {
-                    // 동시성 등으로 이미 누가 넣었다면 무시하고 조회로 이어감
                 }
                 return categoryRepository.findById(cid)
                         .orElseThrow(() -> new ResourceNotFoundException("카테고리 생성/조회 실패: " + cid));
@@ -135,10 +133,10 @@ public class ProductService {
                 .price(req.getPrice())
                 .stockQuantity(req.getStockQuantity())
                 .info(req.getInfo())
-                .category(category)               // FK 연결 (null 허용)
+                .category(category)
                 .userId(seller.getId())
-                .gradeId(null)                    // 이미지 분석 전
-                .createdAt(LocalDateTime.now())   // 또는 @PrePersist
+                .gradeId(null)
+                .createdAt(LocalDateTime.now())
                 .build();
 
         return productRepository.save(p);
@@ -150,7 +148,7 @@ public class ProductService {
                                                         Long productId,
                                                         MultipartFile file,
                                                         boolean isMain,
-                                                        boolean runAi /* 지금은 사용 안 함 */) {
+                                                        boolean runAi) {
         if (file == null || file.isEmpty()) {
             throw new InvalidInputException("파일이 비어있습니다.");
         }
@@ -211,7 +209,7 @@ public class ProductService {
 
             UploadProductImageResponse.ProductInfo productDto = UploadProductImageResponse.ProductInfo.builder()
                     .product_id(product.getId())
-                    .grade_id(product.getGradeId()) // 지금은 변화 없음(null 그대로)
+                    .grade_id(product.getGradeId())
                     .build();
 
             return UploadProductImageResponse.builder()
@@ -312,7 +310,7 @@ public class ProductService {
             case 3 -> "매우 신선";
             case 2 -> "양호";
             case 1 -> "판매임박";
-            default -> null; // 범위 밖은 표시 안 함
+            default -> null;
         };
     }
 }

@@ -47,19 +47,19 @@ public class Product {
     protected void onCreate() {
         LocalDateTime now = LocalDateTime.now();
         if (this.createdAt == null) this.createdAt = now;
-        this.updatedAt = now;                        // 생성 시에도 updatedAt 채움
+        this.updatedAt = now;
     }
     
     @PreUpdate
     protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();        // 엔티티 변경 시 자동 갱신
+        this.updatedAt = LocalDateTime.now();
     }
 
     @Column(name = "unit_label", length = 20)
     private String unitLabel;
 
     @Column(name = "presets_csv", length = 100)
-    private String presetsCsv; // 수량 선택의 추천값
+    private String presetsCsv;
 
     @Column(name = "quantity_min")
     private Integer quantityMin;
