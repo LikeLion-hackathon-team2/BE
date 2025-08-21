@@ -9,35 +9,51 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Schema(description = "공동구매 상세 응답")
 public class GroupPurchaseDetailResponse {
-    @Schema(example = "33")
+
+    @Schema(description = "그룹 ID", example = "1001")
     private Long id;
-    @Schema(example = "leaderA")
+
+    @Schema(description = "리더 이름", example = "김리더")
     private String leaderName;
-    @Schema(example = "101")
+
+    @Schema(description = "상품 ID", example = "101")
     private Long productId;
-    @Schema(example = "테스트 사과 세트")
+
+    @Schema(description = "상품명", example = "샤인머스캣 2kg")
     private String productName;
-    @Schema(example = "12000")
+
+    @Schema(description = "판매가(원)", example = "38000")
     private Integer price;
-    @Schema(example = "https://cdn.example.com/images/101-main.jpg")
+
+    @Schema(description = "상품 대표 이미지 URL", example = "https://cdn.example.com/images/101-main.jpg")
     private String imageUrl;
-    @Schema(example = "상큼농원")
+
+    @Schema(description = "농가/상점명", example = "청송과수원")
     private String farmName;
-    @Schema(example = "2025-08-23T18:00:00")
+
+    @Schema(description = "모집 마감 시각", example = "2025-09-01T23:59:00")
     private LocalDateTime applyDeadlineAt;
-    @Schema(example = "2025-08-26T10:00:00")
+
+    @Schema(description = "희망 배송 시각", example = "2025-09-05T10:00:00")
     private LocalDateTime desiredDeliveryAt;
-    @Schema(example = "서울특별시 강남구 테헤란로 123")
+
+    @Schema(description = "배송지 주소", example = "서울특별시 강남구 테헤란로 123")
     private String address;
-    @Schema(example = "3")
+
+    @Schema(description = "현재 참여 인원", example = "5")
     private int currentParticipants;
-    @Schema(example = "3")
+
+    @Schema(description = "최소 참여 인원", example = "3")
     private int minParticipants;
-    @Schema(example = "10")
+
+    @Schema(description = "최대 참여 인원", example = "10")
     private int maxParticipants;
-    @Schema(example = "5")
+
+    @Schema(description = "총 주문 수량(모든 참가자 합계)", example = "12")
     private int totalQuantity;
-    @Schema(example = "PAYING")
+
+    @Schema(description = "상태(RECRUITING|PAYING|SHIPPING)", example = "RECRUITING")
     private String status;
 }

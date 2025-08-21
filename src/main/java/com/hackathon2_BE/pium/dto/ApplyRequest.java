@@ -7,7 +7,9 @@ import lombok.*;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Schema(description = "공동구매 참여 신청 요청")
 public class ApplyRequest {
-    @Schema(example = "2")
+
+    @Schema(description = "신청 수량", example = "3")
     private Integer quantity;
 }

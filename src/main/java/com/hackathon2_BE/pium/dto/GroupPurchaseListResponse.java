@@ -7,25 +7,36 @@ import lombok.*;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Schema(description = "공동구매 목록 응답")
 public class GroupPurchaseListResponse {
-    @Schema(example = "33")
+
+    @Schema(description = "그룹 ID", example = "1001")
     private Long id;
-    @Schema(example = "l*aderA")
+
+    @Schema(description = "리더 마스킹 이름", example = "김*동")
     private String leaderMaskedName;
-    @Schema(example = "서울특별시 강남구 테헤란로 123")
+
+    @Schema(description = "배송지 주소", example = "서울특별시 강남구 테헤란로 123")
     private String address;
-    @Schema(example = "3")
+
+    @Schema(description = "현재 참여 인원", example = "5")
     private int currentParticipants;
-    @Schema(example = "10")
+
+    @Schema(description = "최대 참여 인원", example = "10")
     private int maxParticipants;
-    @Schema(example = "상큼농원")
+
+    @Schema(description = "농가/상점명", example = "청송과수원")
     private String farmName;
-    @Schema(example = "2025년 8월 26일 오전 10시")
+
+    @Schema(description = "배송 예정 텍스트", example = "2025년 9월 5일 오전 10시")
     private String deliveryAtText;
-    @Schema(example = "https://cdn.example.com/images/101-main.jpg")
+
+    @Schema(description = "대표 이미지 URL", example = "https://cdn.example.com/images/101-main.jpg")
     private String imageUrl;
-    @Schema(example = "12000")
+
+    @Schema(description = "판매가(원)", example = "38000")
     private Integer price;
-    @Schema(example = "12,000원")
+
+    @Schema(description = "가격 문자열", example = "38,000원")
     private String priceText;
 }
