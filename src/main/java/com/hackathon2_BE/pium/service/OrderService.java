@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -37,17 +38,15 @@ public class OrderService {
         var ids = Optional.ofNullable(req.cartItemIds()).orElse(List.of());
         if (ids.isEmpty()) throw new InvalidInputException("cart_item_ids는 비어 있을 수 없습니다.");
 
-        // 장바구니 항목 로드(본인 것만)
         var items = cartItemRepository.findByCartItemIdInAndUserId(ids, userId);
         if (items.isEmpty()) return new OrderPreviewResponse(List.of(),
                 new OrderPreviewTotals(0,0,0),
                 new OrderPreviewDelivery(req.desiredDeliveryDate(), req.desiredDeliveryDate(), List.of()),
                 supportedMethods());
 
-        // 상품 일괄 조회
         var pids = items.stream().map(CartItem::getProductId).collect(Collectors.toSet());
         var productMap = productRepository.findAllById(pids).stream()
-                .collect(Collectors.toMap(Product::getProductId, p->p));
+                .collect(Collectors.toMap(Product::getId, Function.identity()));
 
         List<ApiFieldError> conflicts = new ArrayList<>();
         List<OrderPreviewItem> out = new ArrayList<>();
@@ -72,7 +71,7 @@ public class OrderService {
 
             var seller = new OrderPreviewItem.Seller(p.getUserId(), p.getShopName());
             out.add(new OrderPreviewItem(
-                    ci.getCartItemId(), p.getProductId(), p.getName(),
+                    ci.getCartItemId(), p.getId(), p.getName(),
                     ci.getQuantity(), ci.getUnitPrice(), subtotal,
                     p.getImageMainUrl(), seller, p.getInfo()
             ));
@@ -136,7 +135,7 @@ public class OrderService {
                 "order-" + order.getOrderId(),
                 preview.totals().grandTotal(),
                 req.paymentMethod(),
-                "http://localhost:8080/payments/success",  // 리다이렉트 URL (임시)
+                "http://localhost:8080/payments/success",
                 "http://localhost:8080/payments/fail",
                 idemKey
         );
