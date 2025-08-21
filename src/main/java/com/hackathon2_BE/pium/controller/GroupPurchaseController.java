@@ -50,6 +50,11 @@ public class GroupPurchaseController {
         service.cancel(id, userId);
     }
 
+    @PostMapping("/{id}/pay")
+    public void pay(@PathVariable Long id, @RequestHeader("X-USER-ID") Long userId) {
+        service.pay(id, userId);
+    }
+
     @PatchMapping("/{id}")
     public void update(@PathVariable Long id, @RequestHeader("X-USER-ID") Long leaderUserId, @RequestBody GroupPurchaseUpdateRequest req) {
         service.update(leaderUserId, id, req);

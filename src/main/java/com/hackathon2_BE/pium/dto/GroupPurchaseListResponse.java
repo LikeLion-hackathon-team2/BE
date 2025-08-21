@@ -1,9 +1,6 @@
 package com.hackathon2_BE.pium.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Data
 @Builder
@@ -18,4 +15,7 @@ public class GroupPurchaseListResponse {
     private String farmName;
     private String deliveryAtText;
     private String imageUrl;
+
+    private Integer price;
+    private String priceText;
 }

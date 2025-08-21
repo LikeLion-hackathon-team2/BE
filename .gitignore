@@ -13,8 +13,9 @@ docker-compose.yml
 Dockerfile
 
 ### Spring Boot properties ###
-src/main/resources/application.properties
-src/main/resources/application-*.properties
+# 공용 기본/로컬 전용만 무시 (staging 등은 추적)
+**/src/**/resources/application.properties
+**/src/**/resources/application-local.properties
 
 ### STS ###
 .apt_generated

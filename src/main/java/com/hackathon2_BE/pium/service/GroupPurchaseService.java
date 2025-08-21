@@ -3,6 +3,7 @@ package com.hackathon2_BE.pium.service;
 import com.hackathon2_BE.pium.dto.ApplyRequest;
 import com.hackathon2_BE.pium.dto.GroupPurchaseCreateRequest;
 import com.hackathon2_BE.pium.dto.GroupPurchaseDetailResponse;
+import com.hackathon2_BE.pium.dto.GroupPurchaseDetailViewResponse;
 import com.hackathon2_BE.pium.dto.GroupPurchaseListResponse;
 import com.hackathon2_BE.pium.dto.GroupPurchaseUpdateRequest;
 import com.hackathon2_BE.pium.entity.*;
@@ -21,9 +22,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
-import com.hackathon2_BE.pium.dto.GroupPurchaseDetailViewResponse;
-
-
 
 @Service
 @Transactional
@@ -53,8 +51,10 @@ public class GroupPurchaseService {
                 .status(GroupPurchaseStatus.RECRUITING)
                 .build();
         groupRepo.save(gp);
+
         int leaderQty = req.getLeaderQuantity() == null ? 0 : req.getLeaderQuantity();
         if (leaderQty < 0) throw new BadRequestException("leaderQty");
+
         GroupPurchaseParticipant leaderPart = GroupPurchaseParticipant.builder()
                 .groupPurchase(gp)
                 .user(leader)
@@ -72,16 +72,21 @@ public class GroupPurchaseService {
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy년 M월 d일 a h시", Locale.KOREAN);
         return page.map(g -> {
             int cur = Math.toIntExact(partRepo.countByGroupPurchase_IdAndStatusIn(
-                    g.getId(), List.of(ParticipantStatus.APPLIED, ParticipantStatus.CONFIRMED)));
+                    g.getId(), List.of(ParticipantStatus.APPLIED, ParticipantStatus.PAID)));
+            Product p = g.getProduct();
+            Integer price = p.getPrice();
+            String priceText = price != null ? String.format("%,d원", price) : null;
             return GroupPurchaseListResponse.builder()
                     .id(g.getId())
                     .leaderMaskedName(mask(g.getLeader().getUsername()))
                     .address(g.getAddress())
                     .currentParticipants(cur)
                     .maxParticipants(g.getMaxParticipants())
-                    .farmName(g.getProduct().getShopName())
+                    .farmName(p.getShopName())
                     .deliveryAtText(g.getDesiredDeliveryAt().format(fmt))
-                    .imageUrl(g.getProduct().getImageMainUrl())
+                    .imageUrl(p.getImageMainUrl())
+                    .price(price)
+                    .priceText(priceText)
                     .build();
         });
     }
@@ -89,7 +94,8 @@ public class GroupPurchaseService {
     @Transactional(readOnly = true)
     public GroupPurchaseDetailResponse get(Long id) {
         GroupPurchase g = groupRepo.findById(id).orElseThrow(() -> new BadRequestException("group"));
-        int cur = Math.toIntExact(partRepo.countByGroupPurchase_IdAndStatusIn(g.getId(), List.of(ParticipantStatus.APPLIED, ParticipantStatus.CONFIRMED)));
+        int cur = Math.toIntExact(partRepo.countByGroupPurchase_IdAndStatusIn(
+                g.getId(), List.of(ParticipantStatus.APPLIED, ParticipantStatus.PAID)));
         int qty = safeSumQuantity(g.getId());
         Product p = g.getProduct();
         return GroupPurchaseDetailResponse.builder()
@@ -113,12 +119,14 @@ public class GroupPurchaseService {
 
     public Long apply(Long groupId, Long userId, ApplyRequest req) {
         GroupPurchase g = groupRepo.findById(groupId).orElseThrow(() -> new BadRequestException("group"));
-        if (!g.getStatus().equals(GroupPurchaseStatus.RECRUITING)) throw new BadRequestException("status");
+        if (g.getStatus() != GroupPurchaseStatus.RECRUITING) throw new BadRequestException("status");
         if (!LocalDateTime.now().isBefore(g.getApplyDeadlineAt())) throw new BadRequestException("deadline");
-        int cur = Math.toIntExact(partRepo.countByGroupPurchase_IdAndStatusIn(groupId, List.of(ParticipantStatus.APPLIED, ParticipantStatus.CONFIRMED)));
+        int cur = Math.toIntExact(partRepo.countByGroupPurchase_IdAndStatusIn(
+                groupId, List.of(ParticipantStatus.APPLIED, ParticipantStatus.PAID)));
         if (cur >= g.getMaxParticipants()) throw new BadRequestException("full");
         if (partRepo.existsByGroupPurchase_IdAndUser_Id(groupId, userId)) throw new BadRequestException("dup");
         if (req.getQuantity() == null || req.getQuantity() <= 0) throw new BadRequestException("qty");
+
         User user = userRepo.findById(userId).orElseThrow(() -> new BadRequestException("user"));
         GroupPurchaseParticipant p = GroupPurchaseParticipant.builder()
                 .groupPurchase(g)
@@ -128,8 +136,6 @@ public class GroupPurchaseService {
                 .status(ParticipantStatus.APPLIED)
                 .build();
         partRepo.save(p);
-        cur = Math.toIntExact(partRepo.countByGroupPurchase_IdAndStatusIn(groupId, List.of(ParticipantStatus.APPLIED, ParticipantStatus.CONFIRMED)));
-        if (cur >= g.getMaxParticipants()) g.setStatus(GroupPurchaseStatus.FULL);
         return p.getId();
     }
 
@@ -141,16 +147,19 @@ public class GroupPurchaseService {
         if (p.getRole() == ParticipantRole.LEADER) throw new BadRequestException("leader");
         if (p.getStatus() == ParticipantStatus.CANCELED) return;
         p.setStatus(ParticipantStatus.CANCELED);
-        int cur = Math.toIntExact(partRepo.countByGroupPurchase_IdAndStatusIn(groupId, List.of(ParticipantStatus.APPLIED, ParticipantStatus.CONFIRMED)));
-        if (g.getStatus() == GroupPurchaseStatus.FULL && cur < g.getMaxParticipants()) g.setStatus(GroupPurchaseStatus.RECRUITING);
     }
 
     public void update(Long leaderUserId, Long groupId, GroupPurchaseUpdateRequest req) {
         GroupPurchase g = groupRepo.findById(groupId).orElseThrow(() -> new BadRequestException("group"));
         if (!g.getLeader().getId().equals(leaderUserId)) throw new BadRequestException("forbidden");
+
         Integer minP = req.getMinParticipants() != null ? req.getMinParticipants() : g.getMinParticipants();
         Integer maxP = req.getMaxParticipants() != null ? req.getMaxParticipants() : g.getMaxParticipants();
         if (minP > maxP) throw new BadRequestException("min>max");
+
+        int current = activeCount(groupId);
+        if (maxP < current) throw new BadRequestException("max<current");
+
         g.setMinParticipants(minP);
         g.setMaxParticipants(maxP);
         if (req.getApplyDeadlineAt() != null) g.setApplyDeadlineAt(req.getApplyDeadlineAt());
@@ -159,7 +168,21 @@ public class GroupPurchaseService {
         if (req.getRecipientName() != null) g.setRecipientName(req.getRecipientName());
         if (req.getRecipientPhone() != null) g.setRecipientPhone(req.getRecipientPhone());
         if (req.getAddress() != null) g.setAddress(req.getAddress());
-        if (req.getStatus() != null) g.setStatus(req.getStatus());
+
+        if (req.getStatus() != null) {
+            GroupPurchaseStatus next = req.getStatus();
+            if (!canTransit(g.getStatus(), next)) throw new BadRequestException("illegal_transition");
+            if (next == GroupPurchaseStatus.PAYING) {
+                if (!(LocalDateTime.now().isAfter(g.getApplyDeadlineAt())
+                        && activeCount(g.getId()) >= g.getMinParticipants())) {
+                    throw new BadRequestException("cannot_pay_phase");
+                }
+            }
+            if (next == GroupPurchaseStatus.SHIPPING) {
+                if (!allPaid(g.getId())) throw new BadRequestException("not_all_paid");
+            }
+            g.setStatus(next);
+        }
     }
 
     public void delete(Long leaderUserId, Long groupId) {
@@ -167,6 +190,17 @@ public class GroupPurchaseService {
         if (!g.getLeader().getId().equals(leaderUserId)) throw new BadRequestException("forbidden");
         partRepo.deleteByGroupPurchase_Id(groupId);
         groupRepo.delete(g);
+    }
+
+    public void pay(Long groupId, Long userId) {
+        GroupPurchase g = groupRepo.findById(groupId).orElseThrow(() -> new BadRequestException("group"));
+        if (g.getStatus() != GroupPurchaseStatus.PAYING) throw new BadRequestException("status");
+        GroupPurchaseParticipant p = partRepo.findByGroupPurchase_IdAndUser_Id(groupId, userId)
+                .orElseThrow(() -> new BadRequestException("notfound"));
+        if (p.getStatus() == ParticipantStatus.CANCELED) throw new BadRequestException("canceled");
+        if (p.getStatus() == ParticipantStatus.PAID) return;
+        p.setStatus(ParticipantStatus.PAID);
+        if (allPaid(groupId)) g.setStatus(GroupPurchaseStatus.SHIPPING);
     }
 
     private String mask(String s) {
@@ -178,24 +212,40 @@ public class GroupPurchaseService {
 
     private int safeSumQuantity(Long groupId) {
         try {
-            Long v = partRepo.sumQuantityByGroupPurchaseIdAndStatusIn(groupId, List.of(ParticipantStatus.APPLIED, ParticipantStatus.CONFIRMED));
+            Long v = partRepo.sumQuantityByGroupPurchaseIdAndStatusIn(groupId, List.of(ParticipantStatus.APPLIED, ParticipantStatus.PAID));
             return v == null ? 0 : v.intValue();
         } catch (Exception e) {
             return 0;
         }
     }
+
+    private int activeCount(Long groupId) {
+        return Math.toIntExact(partRepo.countByGroupPurchase_IdAndStatusIn(
+                groupId, List.of(ParticipantStatus.APPLIED, ParticipantStatus.PAID)));
+    }
+
+    private boolean allPaid(Long groupId) {
+        long total = partRepo.countByGroupPurchase_IdAndStatusIn(groupId, List.of(ParticipantStatus.APPLIED, ParticipantStatus.PAID));
+        long paid = partRepo.countByGroupPurchase_IdAndStatusIn(groupId, List.of(ParticipantStatus.PAID));
+        return total > 0 && total == paid;
+    }
+
+    private boolean canTransit(GroupPurchaseStatus cur, GroupPurchaseStatus next) {
+        if (cur == next) return true;
+        if (cur == GroupPurchaseStatus.RECRUITING && next == GroupPurchaseStatus.PAYING) return true;
+        if (cur == GroupPurchaseStatus.PAYING && next == GroupPurchaseStatus.SHIPPING) return true;
+        return false;
+    }
+
     @Transactional(readOnly = true)
     public GroupPurchaseDetailViewResponse getView(Long id) {
         GroupPurchase g = groupRepo.findById(id).orElseThrow(() -> new BadRequestException("group"));
-        int cur = Math.toIntExact(
-                partRepo.countByGroupPurchase_IdAndStatusIn(
-                        g.getId(), List.of(ParticipantStatus.APPLIED, ParticipantStatus.CONFIRMED)));
-
+        int cur = Math.toIntExact(partRepo.countByGroupPurchase_IdAndStatusIn(
+                g.getId(), List.of(ParticipantStatus.APPLIED, ParticipantStatus.PAID)));
         Product p = g.getProduct();
-
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy년 M월 d일 a h시", Locale.KOREAN);
-        String priceText = String.format("%,d원", p.getPrice());
-
+        Integer price = p.getPrice();
+        String priceText = price != null ? String.format("%,d원", price) : null;
         return GroupPurchaseDetailViewResponse.builder()
                 .id(g.getId())
                 .imageUrl(p.getImageMainUrl())
@@ -212,4 +262,3 @@ public class GroupPurchaseService {
                 .build();
     }
 }
-
