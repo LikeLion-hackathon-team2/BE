@@ -13,12 +13,24 @@ public class UserDTO {
     @Schema(description = "비밀번호", example = "pium1234!")
     private String password;
 
-    @Schema(description = "역할(USER 또는 SELLER)", example = "USER")
+    @Schema(description = "역할(consumer 또는 seller)", example = "seller")
     private String role;
 
-    @Schema(description = "휴대폰 번호", example = "010-1234-5678")
+    @Schema(description = "휴대폰 번호", example = "01012345678")
     private String phoneNumber;
 
-    @Schema(description = "사업자번호(SELLER만)", example = "123-45-67890")
+    @Schema(description = "사업자번호(seller만)", example = "1234567890")
     private String businessNumber; // seller만
+
+    private String shopName;
+
+    private DepositAccountDto depositAccount;
+
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor
+    @Schema(name="DepositAccountDto")
+    public static class DepositAccountDto {
+        private String bank;
+        private String number;
+        private String holder;
+    }
 }

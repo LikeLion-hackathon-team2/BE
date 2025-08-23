@@ -40,6 +40,9 @@ public class User {
     @Column(nullable = false, length = 11)
     private String phoneNumber;
 
+    @OneToOne(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private Shop shop;
+
     @CreatedDate
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -47,5 +50,10 @@ public class User {
     @LastModifiedDate
     @Column(nullable = false)
     private LocalDateTime updatedAt;
+
+    public void setShop(Shop shop) {
+        this.shop = shop;
+        if (shop != null) shop.setOwner(this);
+    }
 
 }
