@@ -1,10 +1,26 @@
 package com.hackathon2_BE.pium.controller;
 
-import com.hackathon2_BE.pium.dto.UploadProductImageResponse;
+import java.util.Map;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile; // ← ApiResponses만 import
+
 import com.hackathon2_BE.pium.dto.ApiResponse;
 import com.hackathon2_BE.pium.dto.CreateProductRequest;
 import com.hackathon2_BE.pium.dto.ProductResponse;
 import com.hackathon2_BE.pium.dto.SellerProductListResponse;
+import com.hackathon2_BE.pium.dto.UploadProductImageResponse;
 import com.hackathon2_BE.pium.entity.Product;
 import com.hackathon2_BE.pium.exception.UnauthenticatedException;
 import com.hackathon2_BE.pium.security.CustomUserDetails;
@@ -12,22 +28,14 @@ import com.hackathon2_BE.pium.service.ProductService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import io.swagger.v3.oas.annotations.media.*;
-import io.swagger.v3.oas.annotations.responses.ApiResponses; // ← ApiResponses만 import
-
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
-
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.http.MediaType;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.util.Map;
 
 @Tag(name = "Seller Products", description = "판매자 상품 관리 API")
 @RestController
@@ -93,14 +101,43 @@ public class SellerProductController {
 
     @Operation(summary = "판매자 상품 목록", description = "판매자의 상품을 조건별로 조회합니다.")
     @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "201",
+                    description = "조회 성공",
+                    content = @Content(mediaType = "application/json",
+                            examples = @ExampleObject(name = "create-product-ok", value = """
+                {
+  "success": true,
+  "code": "OK",
+  "message": "판매자 상품 목록 조회 성공",
+  "data": {
+    "items": [
+      {
+        "product_id": 321,
+        "name": "장미 (Roses)",
+        "price": 3000,
+        "stock_quantity": 120,
+        "status": "active",
+        "category_id": 21,
+        "main_image_url": "https://cdn.example.com/p/321_main.jpg",
+        "freshness": { "grade_id": 4, "grade": 4, "label": "매우 신선" },
+        "created_at": "2025-08-09T10:30:00Z",
+        "updated_at": "2025-08-10T08:15:00Z"
+      }
+    ],
+    "pagination": { "page": 1, "size": 20, "total": 56 }
+  }
+}
+
+                """))
+            )
     })
     @GetMapping
     public ResponseEntity<ApiResponse<SellerProductListResponse>> getSellerProducts(
             @Parameter(description = "검색어", example = "사과") @RequestParam(name = "q", required = false) String q,
             @Parameter(description = "카테고리 ID", example = "2") @RequestParam(name = "category_id", required = false) Long categoryId,
-            @Parameter(description = "상태 필터(ex. ACTIVE, SOLD_OUT)", example = "ACTIVE") @RequestParam(name = "status", required = false) String status,
-            @Parameter(description = "정렬 키(ex. created,-price)", example = "created") @RequestParam(name = "sort", required = false) String sort,
+            @Parameter(description = "상태 필터(ex. active | out_of_stock)", example = "active") @RequestParam(name = "status", required = false) String status,
+            @Parameter(description = "정렬 키(ex. latest | price_asc | price_desc | stock_asc | stock_desc)", example = "latest") @RequestParam(name = "sort", required = false) String sort,
             @Parameter(description = "페이지", example = "0") @RequestParam(name = "page", required = false) Integer page,
             @Parameter(description = "사이즈", example = "20") @RequestParam(name = "size", required = false) Integer size,
             @Parameter(hidden = true) Authentication authentication
