@@ -16,13 +16,16 @@ public class MeResponse {
     @Schema(description = "사용자명(로그인 아이디)", example = "apple_farm")
     private String username;
 
-    @Schema(description = "역할(소문자)", example = "buyer")
+
+    @Schema(description = "역할(소문자)", example = "consumer")
     private String role;
 
-    @Schema(description = "연락처", example = "010-1234-5678")
+
+    @Schema(description = "연락처(숫자만)", example = "01012345678")
     private String phoneNumber;
 
-    @Schema(description = "사업자등록번호(판매자만)", example = "123-45-67890")
+
+    @Schema(description = "사업자등록번호(판매자만, 숫자만)", example = "1234567890")
     @JsonProperty("business_number")
     private String businessNumber;
 
@@ -42,7 +45,7 @@ public class MeResponse {
         m.phoneNumber = u.getPhoneNumber();
         m.businessNumber = u.getBusinessNumber();
         m.createdAt = toIsoUtc(u.getCreatedAt());
-        m.updatedAt = toIsoUtc(u.getCreatedAt()); // updatedAt 필드가 없으면 createdAt 재사용
+        m.updatedAt = toIsoUtc(u.getCreatedAt()); // updatedAt 필드 없으면 createdAt 재사용
         return m;
     }
 

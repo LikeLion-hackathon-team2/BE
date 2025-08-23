@@ -21,12 +21,14 @@ public class GroupPurchase {
     @Column(name = "group_id")
     private Long id;
 
+    // users.id (PK)로 명시
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id", nullable = false, referencedColumnName = "id")
     private User leader;
 
+    // product.productId (PK)로 명시
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "product_id", nullable = false)
+    @JoinColumn(name = "product_id", nullable = false, referencedColumnName = "productId")
     private Product product;
 
     @Column(name = "min_participants", nullable = false)
