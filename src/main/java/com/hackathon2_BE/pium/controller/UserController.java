@@ -34,10 +34,10 @@ public class UserController {
                                             name = "일반 사용자",
                                             value = """
                         {
-                          "username": "pium_user1",
-                          "password": "p@ssw0rd!",
-                          "role": "USER",
-                          "phoneNumber": "010-1234-5678"
+                          "username": "user_0001",
+                          "password": "Abcd1234!",
+                          "role": "consumer",
+                          "phoneNumber": "01012345678"
                         }
                         """
                                     ),
@@ -45,11 +45,13 @@ public class UserController {
                                             name = "판매자",
                                             value = """
                         {
-                          "username": "seller_ace",
-                          "password": "S3ll3r!234",
-                          "role": "SELLER",
-                          "phoneNumber": "010-5555-7777",
-                          "businessNumber": "123-45-67890"
+                          "username": "user_0002",
+                          "password": "Abcd1234",
+                          "role": "seller",
+                          "phoneNumber": "01055557777",
+                          "businessNumber": "1234567890",
+                          "shopName": "멋사네 가게",
+                          "depositAccount": { "bank": "국민", "number": "11111111111111", "holder": "멋사네" }
                         }
                         """
                                     )
@@ -60,7 +62,7 @@ public class UserController {
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<UserSignupResponse>> signup(@RequestBody UserDTO userDTO) {
         User user = userService.signup(userDTO);
-        UserSignupResponse data = UserSignupResponse.from(user);
+        UserSignupResponse data = UserSignupResponse.of(user);
         return ResponseEntity.status(201)
                 .body(new ApiResponse<>(true, "CREATED", "회원가입 완료", data));
     }
