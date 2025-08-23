@@ -16,9 +16,7 @@ import com.hackathon2_BE.pium.repository.ProductImageRepository;
 import com.hackathon2_BE.pium.repository.CategoryRepository;
 import com.hackathon2_BE.pium.repository.ProductRepository;
 import com.hackathon2_BE.pium.repository.UserRepository;
-
 import lombok.RequiredArgsConstructor;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -33,6 +31,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.io.IOException;
 import java.nio.file.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -42,17 +41,19 @@ public class ProductService {
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
     private final ProductImageRepository productImageRepository;
+
     @Value("${app.upload.dir:uploads}")
     private String uploadRootDir;
+
     private static final Set<String> ALLOWED_EXT = Set.of("jpg", "jpeg", "png", "webp");
 
     // 2-1) 상품 목록/검색/필터
     public Page<Product> getProductList(String keyword, Long categoryId, Pageable pageable){
-        if(keyword != null && !keyword.isBlank()){
+        if (keyword != null && !keyword.isBlank()){
             return productRepository.findByNameContainingIgnoreCaseOrInfoContainingIgnoreCase(keyword, keyword, pageable);
-        } else if(categoryId != null){
+        } else if (categoryId != null){
             return productRepository.findByCategory_Id(categoryId, pageable);
-        } else{
+        } else {
             return productRepository.findAll(pageable);
         }
     }
@@ -77,7 +78,7 @@ public class ProductService {
                         .map(String::trim)
                         .filter(x -> !x.isEmpty())
                         .map(Integer::valueOf)
-                        .toList())
+                        .collect(Collectors.toList()))
                 .orElse(List.of());
 
         int qMin = Optional.ofNullable(p.getQuantityMin()).orElse(1);
@@ -85,7 +86,6 @@ public class ProductService {
         int qMax = Optional.ofNullable(p.getQuantityMax()).orElse(stock);
 
         if (qMin < 1 || qMax < qMin || qStep < 1) {
-            // 전역 예외 처리기에서 INVALID_INPUT으로 변환되도록
             throw new InvalidInputException("요청 필드가 올바르지 않습니다.");
         }
 
@@ -111,16 +111,16 @@ public class ProductService {
             throw new ForbiddenException("판매자 권한이 필요합니다.");
         }
 
-        // 2) 카테고리: 숫자 id만 받음. 있으면 사용, 없으면 그 id로 새로 INSERT
+        // 2) 카테고리
         Category category = null;
         if (req.getCategoryId() != null) {
             Long cid = req.getCategoryId();
-
             category = categoryRepository.findById(cid).orElseGet(() -> {
                 String generatedName = "카테고리 " + cid;
                 try {
                     categoryRepository.insertWithId(cid, generatedName);
                 } catch (DataIntegrityViolationException e) {
+                    // 동시성 등으로 이미 생성된 경우 무시
                 }
                 return categoryRepository.findById(cid)
                         .orElseThrow(() -> new ResourceNotFoundException("카테고리 생성/조회 실패: " + cid));
@@ -141,14 +141,14 @@ public class ProductService {
 
         return productRepository.save(p);
     }
-    
+
     // 6-2) 상품 등록(2)-상품 이미지 업로드
     @Transactional
     public UploadProductImageResponse uploadProductImage(Long sellerId,
-                                                        Long productId,
-                                                        MultipartFile file,
-                                                        boolean isMain,
-                                                        boolean runAi) {
+                                                         Long productId,
+                                                         MultipartFile file,
+                                                         boolean isMain,
+                                                         boolean runAi) {
         if (file == null || file.isEmpty()) {
             throw new InvalidInputException("파일이 비어있습니다.");
         }
@@ -185,7 +185,7 @@ public class ProductService {
             // 대표 이미지 플래그 정리
             if (isMain) {
                 productImageRepository.clearMainByProductId(productId);
-                product.setImageMainUrl(url); // Product 엔티티에 imageMainUrl 필드가 이미 있음
+                product.setImageMainUrl(url);
                 productRepository.save(product);
             }
 
@@ -232,7 +232,7 @@ public class ProductService {
                                                        Integer page,
                                                        Integer size) {
 
-        int p = (page == null || page < 1) ? 1 : page;
+        int p = (page == null || page < 1) ? 1 : page; // 1-based 입력
         int s = (size == null) ? 20 : size;
         if (s < 1 || s > 100) {
             throw new InvalidInputException("size는 1~100 사이여야 합니다.");
@@ -258,7 +258,7 @@ public class ProductService {
 
         PageRequest pageable = PageRequest.of(p - 1, s, sortObj);
 
-        var pageResult = productRepository.findSellerProducts(
+        Page<Product> pageResult = productRepository.findSellerProducts(
                 sellerId,
                 (q == null || q.isBlank()) ? null : q,
                 categoryId,
@@ -266,32 +266,35 @@ public class ProductService {
                 pageable
         );
 
-        var items = pageResult.stream().map(pv -> {
-            var freshness = (pv.getGradeId() == null) ? null :
-                    SellerProductListResponse.Freshness.builder()
+        // 명시적 타입 + Collectors.toList() 사용
+        List<SellerProductListResponse.Item> items = pageResult.getContent().stream()
+                .map(pv -> {
+                    SellerProductListResponse.Freshness freshness = (pv.getGradeId() == null) ? null
+                            : SellerProductListResponse.Freshness.builder()
                             .grade_id(pv.getGradeId())
                             .grade(pv.getGradeId().intValue())
                             .label(toFreshnessLabel(pv.getGradeId()))
                             .build();
 
-            String computedStatus = (pv.getStockQuantity() == null || pv.getStockQuantity() == 0)
-                    ? "out_of_stock" : "active";
+                    String computedStatus = (pv.getStockQuantity() == null || pv.getStockQuantity() == 0)
+                            ? "out_of_stock" : "active";
 
-            return SellerProductListResponse.Item.builder()
-                    .product_id(pv.getId())
-                    .name(pv.getName())
-                    .price(pv.getPrice())
-                    .stock_quantity(pv.getStockQuantity())
-                    .status(computedStatus)
-                    .category_id(pv.getCategory() != null ? pv.getCategory().getId() : null)
-                    .main_image_url(pv.getImageMainUrl())
-                    .freshness(freshness)
-                    .created_at(pv.getCreatedAt())
-                    .updated_at(pv.getUpdatedAt())
-                    .build();
-        }).toList();
+                    return SellerProductListResponse.Item.builder()
+                            .product_id(pv.getId())
+                            .name(pv.getName())
+                            .price(pv.getPrice())
+                            .stock_quantity(pv.getStockQuantity())
+                            .status(computedStatus)
+                            .category_id(pv.getCategory() != null ? pv.getCategory().getId() : null)
+                            .main_image_url(pv.getImageMainUrl())
+                            .freshness(freshness)
+                            .created_at(pv.getCreatedAt())
+                            // .updated_at(pv.getUpdatedAt()) // 현재 엔티티에 게터가 없어서 제외
+                            .build();
+                })
+                .collect(Collectors.toList());
 
-        var pagination = SellerProductListResponse.Pagination.builder()
+        SellerProductListResponse.Pagination pagination = SellerProductListResponse.Pagination.builder()
                 .page(p)
                 .size(s)
                 .total(pageResult.getTotalElements())
@@ -314,4 +317,3 @@ public class ProductService {
         };
     }
 }
-

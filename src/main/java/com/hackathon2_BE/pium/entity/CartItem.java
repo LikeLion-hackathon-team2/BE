@@ -1,10 +1,7 @@
 package com.hackathon2_BE.pium.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
@@ -13,9 +10,11 @@ import java.time.LocalDateTime;
 @Getter @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-
 public class CartItem {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "cart_item_id")
     private Long cartItemId;
 
     @Column(name = "user_id", nullable = false)
@@ -36,4 +35,3 @@ public class CartItem {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 }
-
