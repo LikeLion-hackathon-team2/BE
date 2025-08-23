@@ -2,12 +2,18 @@ package com.hackathon2_BE.pium.service;
 
 import com.hackathon2_BE.pium.dto.MeResponse;
 import com.hackathon2_BE.pium.dto.UserDTO;
+import com.hackathon2_BE.pium.entity.GroupPurchase;
+import com.hackathon2_BE.pium.entity.GroupPurchaseParticipant;
+import com.hackathon2_BE.pium.entity.Order;
 import com.hackathon2_BE.pium.entity.User;
 import com.hackathon2_BE.pium.entity.Shop;
 import com.hackathon2_BE.pium.entity.DepositAccount;
 import com.hackathon2_BE.pium.exception.InvalidInputException;
 import com.hackathon2_BE.pium.exception.UnauthenticatedException;
 import com.hackathon2_BE.pium.exception.UsernameAlreadyExistsException;
+import com.hackathon2_BE.pium.repository.GroupPurchaseParticipantRepository;
+import com.hackathon2_BE.pium.repository.GroupPurchaseRepository;
+import com.hackathon2_BE.pium.repository.OrderRepository;
 import com.hackathon2_BE.pium.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -20,12 +26,17 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.*;
+
 @Service
 @RequiredArgsConstructor
 public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final GroupPurchaseParticipantRepository gppRepository;
+    private final GroupPurchaseRepository gpRepository;
+    private final OrderRepository orderRepository;
 
     // ===================== 회원가입 =====================
     @Transactional
@@ -112,13 +123,55 @@ public class UserService {
         return userRepository.save(user);
     }
 
-    // ===================== 내 정보 조회 =====================
-    @Transactional(readOnly = true)
+    // ===================== 내 정보 조회 (Auth → ID 추출 래퍼) =====================
+    @Transactional
     public MeResponse getMe() {
         String username = getCurrentUsernameOrThrow();
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다."));
-        return MeResponse.from(user);
+        // 기존: return MeResponse.from(user);
+        // 변경: 상세 프로필 조립 메서드로 위임
+        return getMyProfile(user.getId());
+    }
+
+    // ===================== 상세 조립: 기본 인적 + 공동구매 + 주문 =====================
+    @Transactional
+    public MeResponse getMyProfile(Long userId) {
+        User user = userRepository.findById(userId).orElseThrow();
+
+        // 1) 내가 '참여'한 공동구매 (N+1 방지 fetch-join)
+        List<GroupPurchaseParticipant> myParticipations = gppRepository.findDeepByUserId(userId);
+
+        // 2) 내가 '개설'한 공동구매 (상점-오너 기준)
+        List<GroupPurchase> myOwned = gpRepository.findOwnedByUserId(userId);
+
+        // 3) 내가 '구매자'로 한 모든 주문 (아이템/상품/이미지까지 fetch)
+        List<Order> myOrders = orderRepository.findDeepByBuyerId(userId);
+
+        // 4) 공구별 참여 인원 수 집계 → 배송비(5000/n) 계산에 사용
+        Set<Long> gpIds = new HashSet<>();
+        myParticipations.stream()
+                .map(GroupPurchaseParticipant::getGroupPurchase)
+                .filter(Objects::nonNull)
+                .map(GroupPurchase::getId)
+                .filter(Objects::nonNull)
+                .forEach(gpIds::add);
+        myOwned.stream()
+                .map(GroupPurchase::getId)
+                .filter(Objects::nonNull)
+                .forEach(gpIds::add);
+
+        Map<Long, Integer> participantCountByGpId = new HashMap<>();
+        if (!gpIds.isEmpty()) {
+            for (Object[] row : gppRepository.countByGroupPurchaseIds(gpIds)) {
+                Long gpId = (Long) row[0];
+                Number cnt = (Number) row[1];
+                participantCountByGpId.put(gpId, (cnt != null) ? cnt.intValue() : 1);
+            }
+        }
+
+        // 5) DTO 변환 (이미지 선택 + 배송비 5000/n 로직은 MeResponse 내부에서 처리)
+        return MeResponse.of(user, myParticipations, myOwned, myOrders, participantCountByGpId);
     }
 
     private String getCurrentUsernameOrThrow() {
