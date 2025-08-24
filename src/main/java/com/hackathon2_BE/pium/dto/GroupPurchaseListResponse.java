@@ -28,6 +28,9 @@ public class GroupPurchaseListResponse {
     @Schema(description = "농가/상점명", example = "청송과수원")
     private String farmName;
 
+    @Schema(description = "상품명", example = "청송 사과 5kg")
+    private String productName;
+
     @Schema(description = "배송 예정 텍스트", example = "2025년 9월 5일 오전 10시")
     private String deliveryAtText;
 
