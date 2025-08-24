@@ -3,6 +3,13 @@ package com.hackathon2_BE.pium.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+
+
+
+
+
+import java.util.ArrayList;
+import java.util.List;
 import java.time.LocalDateTime;
 
 @Getter
@@ -17,8 +24,8 @@ public class Product {
     // DB 컬럼: productId (PK)
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "productId")   // ★ DB 실제 컬럼명과 일치
-    private Long id;              // 필드명은 기존 서비스 코드 호환 위해 유지
+    @Column(name = "productId")
+    private Long id;
 
     // DB 컬럼: userId
     @Column(name = "userId")
@@ -30,7 +37,7 @@ public class Product {
 
     // DB 컬럼: categoryId (FK 값 저장, 카테고리 PK는 category.category_id)
     @ManyToOne(fetch = FetchType.LAZY, optional = true)
-    @JoinColumn(name = "categoryId")  // ★ camelCase 그대로
+    @JoinColumn(name = "categoryId")
     private Category category;
 
     // DB 컬럼: name
@@ -41,8 +48,13 @@ public class Product {
     @Column(name = "info", length = 255)
     private String info;
 
-    // DB 컬럼: price
-    @Column(name = "price")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "shop_id", foreignKey = @ForeignKey(name = "fk_product_shop"))
+    private Shop shop;
+
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ProductImage> images = new ArrayList<>();
+
     private Integer price;
 
     // DB 컬럼: stockQuantity

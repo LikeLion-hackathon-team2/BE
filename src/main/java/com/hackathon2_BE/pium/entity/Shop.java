@@ -21,6 +21,7 @@ public class Shop {
     private User owner;
 
     @OneToOne(mappedBy="shop", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JoinColumn(name = "deposit_account_id", foreignKey = @ForeignKey(name = "fk_shop_deposit_account"))
     private DepositAccount depositAccount;
 
     @Column(nullable=false, updatable=false)

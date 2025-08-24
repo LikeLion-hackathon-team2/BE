@@ -23,6 +23,10 @@ public class Order {
 
     private Long userId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "consumer_id", nullable = false)
+    private User consumer;
+    
     @Enumerated(EnumType.STRING)
     private OrderStatus orderStatus;
     private LocalDate deliveryDate;
@@ -31,7 +35,6 @@ public class Order {
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> orderItems = new ArrayList<>();
-
 
     @Enumerated(EnumType.STRING)
     @Column(name = "purchase_type")
@@ -42,4 +45,16 @@ public class Order {
     private Integer totalProductsPrice;
     private Integer shippingFee;
     private Integer grandTotal;
+
+    public Shop getShop() {
+        if (orderItems == null) return null;
+        for (OrderItem oi : orderItems) {
+            if (oi == null) continue;
+            Product p = oi.getProduct();
+            if (p != null && p.getShop() != null) {
+                return p.getShop();
+            }
+        }
+        return null;
+    }
 }
