@@ -28,7 +28,7 @@ public class GroupPurchase {
 
     // product.productId (PK)로 명시
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "product_id", nullable = false, referencedColumnName = "productId")
+    @JoinColumn(name = "product_id", nullable = false, referencedColumnName = "id")
     private Product product;
 
     @Column(name = "min_participants", nullable = false)

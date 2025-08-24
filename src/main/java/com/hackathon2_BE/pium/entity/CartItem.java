@@ -14,7 +14,9 @@ public class CartItem {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "cart_item_id")      // PK + AUTO_INCREMENT (스키마와 동일)
+
+    @Column(name = "cartItemId")
+  
     private Long cartItemId;
 
     @Column(name = "user_id", nullable = false)        // FK → users.id
@@ -36,7 +38,10 @@ public class CartItem {
     private LocalDateTime createdAt;
 
     @PrePersist
-    protected void onCreate() {
-        if (this.createdAt == null) this.createdAt = LocalDateTime.now();
+    public void prePersist() {
+        if (createdAt == null) createdAt = LocalDateTime.now();
+        if (subtotal == null && unitPrice != null && quantity != null) {
+            subtotal = unitPrice * quantity;
+        }
     }
 }

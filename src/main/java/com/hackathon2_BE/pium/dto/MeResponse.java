@@ -1,11 +1,23 @@
 package com.hackathon2_BE.pium.dto;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.hackathon2_BE.pium.entity.*;
-
-import java.util.*;
-import java.util.stream.Collectors;
+import com.hackathon2_BE.pium.entity.DepositAccount;
+import com.hackathon2_BE.pium.entity.GroupPurchase;
+import com.hackathon2_BE.pium.entity.GroupPurchaseParticipant;
+import com.hackathon2_BE.pium.entity.Order;
+import com.hackathon2_BE.pium.entity.OrderItem;
+import com.hackathon2_BE.pium.entity.Product;
+import com.hackathon2_BE.pium.entity.ProductImage;
+import com.hackathon2_BE.pium.entity.Shop;
+import com.hackathon2_BE.pium.entity.User;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class MeResponse {
@@ -23,6 +35,31 @@ public class MeResponse {
     public List<GroupPurchaseDto> groupPurchases;
     @JsonProperty("orders")
     public List<OrderDto> orders;
+    @JsonProperty("shop")
+    public ShopDto shop;
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class ShopDto {
+    public Long id;
+    public String name;
+
+    @JsonProperty("businessNumber")
+    public String ownerBusinessNumber;
+
+    @JsonProperty("depositAccount")
+    public DepositAccountDto depositAccount;
+
+    public static ShopDto of(Shop s) {
+        if (s == null) return null;
+        ShopDto d = new ShopDto();
+        d.id = s.getId();
+        d.name = s.getName();
+        User owner = s.getOwner();
+        d.ownerBusinessNumber = (owner != null) ? owner.getBusinessNumber() : null;
+        d.depositAccount = DepositAccountDto.from(s.getDepositAccount());
+        return d;
+    }
+}
 
     // ---------- 팩토리 ----------
     public static MeResponse of(
@@ -64,8 +101,9 @@ public class MeResponse {
         m.groupPurchases = joined;
 
 
-        // 주문
-        m.orders = myOrders.stream().map(OrderDto::from).collect(Collectors.toList());
+        // 주문erDto::from).collect(Collectors.toList());
+        m.orders = myOrders.stream().map(OrderDto::from).toList();
+        m.shop = ShopDto.of(user.getShop());
         return m;
     }
 
