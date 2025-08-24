@@ -23,7 +23,7 @@ public class Product {
     // DB 컬럼: productId (PK)
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "productId")
+    @Column(name = "id")
     private Long id;
 
     // DB 컬럼: userId
