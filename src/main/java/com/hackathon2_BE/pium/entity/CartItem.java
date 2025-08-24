@@ -14,13 +14,15 @@ public class CartItem {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+
     @Column(name = "cartItemId")
+  
     private Long cartItemId;
 
-    @Column(name = "user_id", nullable = false)
+    @Column(name = "user_id", nullable = false)        // FK → users.id
     private Long userId;
 
-    @Column(name = "product_id", nullable = false)
+    @Column(name = "product_id", nullable = false)     // FK → product.productId
     private Long productId;
 
     @Column(name = "quantity", nullable = false)
@@ -29,8 +31,8 @@ public class CartItem {
     @Column(name = "unit_price", nullable = false)
     private Integer unitPrice;
 
-    @Column(name = "subtotal", nullable = false)
-    private Integer subtotal; // unit_price * quantity
+    @Column(name = "subtotal", nullable = false)       // unit_price * quantity
+    private Integer subtotal;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

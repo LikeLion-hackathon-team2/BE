@@ -6,7 +6,13 @@ import com.hackathon2_BE.pium.dto.GroupPurchaseDetailResponse;
 import com.hackathon2_BE.pium.dto.GroupPurchaseDetailViewResponse;
 import com.hackathon2_BE.pium.dto.GroupPurchaseListResponse;
 import com.hackathon2_BE.pium.dto.GroupPurchaseUpdateRequest;
-import com.hackathon2_BE.pium.entity.*;
+import com.hackathon2_BE.pium.entity.GroupPurchase;
+import com.hackathon2_BE.pium.entity.GroupPurchaseParticipant;
+import com.hackathon2_BE.pium.entity.GroupPurchaseStatus;
+import com.hackathon2_BE.pium.entity.ParticipantRole;
+import com.hackathon2_BE.pium.entity.ParticipantStatus;
+import com.hackathon2_BE.pium.entity.Product;
+import com.hackathon2_BE.pium.entity.User;
 import com.hackathon2_BE.pium.exception.BadRequestException;
 import com.hackathon2_BE.pium.repository.GroupPurchaseParticipantRepository;
 import com.hackathon2_BE.pium.repository.GroupPurchaseRepository;
@@ -36,8 +42,10 @@ public class GroupPurchaseService {
     public Long create(Long leaderUserId, GroupPurchaseCreateRequest req) {
         if (req.getMinParticipants() > req.getMaxParticipants()) throw new BadRequestException("min>max");
         if (!req.getApplyDeadlineAt().isBefore(req.getDesiredDeliveryAt())) throw new BadRequestException("deadline>=delivery");
+
         User leader = userRepo.findById(leaderUserId).orElseThrow(() -> new BadRequestException("user"));
         Product product = productRepo.findById(req.getProductId()).orElseThrow(() -> new BadRequestException("product"));
+
         GroupPurchase gp = GroupPurchase.builder()
                 .leader(leader)
                 .product(product)
@@ -68,14 +76,24 @@ public class GroupPurchaseService {
 
     @Transactional(readOnly = true)
     public Page<GroupPurchaseListResponse> list(GroupPurchaseStatus status, Pageable pageable) {
-        Page<GroupPurchase> page = status == null ? groupRepo.findAll(pageable) : groupRepo.findByStatus(status, pageable);
+        Page<GroupPurchase> page = (status == null)
+                ? groupRepo.findAll(pageable)
+                : groupRepo.findByStatus(status, pageable);
+
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy년 M월 d일 a h시", Locale.KOREAN);
+
         return page.map(g -> {
-            int cur = Math.toIntExact(partRepo.countByGroupPurchase_IdAndStatusIn(
-                    g.getId(), List.of(ParticipantStatus.APPLIED, ParticipantStatus.PAID)));
+            int cur = Math.toIntExact(
+                    partRepo.countByGroupPurchase_IdAndStatusIn(
+                            g.getId(),
+                            List.of(ParticipantStatus.APPLIED, ParticipantStatus.PAID)
+                    )
+            );
+
             Product p = g.getProduct();
             Integer price = p.getPrice();
-            String priceText = price != null ? String.format("%,d원", price) : null;
+            String priceText = (price != null) ? String.format("%,d원", price) : null;
+
             return GroupPurchaseListResponse.builder()
                     .id(g.getId())
                     .leaderMaskedName(mask(g.getLeader().getUsername()))
@@ -83,6 +101,7 @@ public class GroupPurchaseService {
                     .currentParticipants(cur)
                     .maxParticipants(g.getMaxParticipants())
                     .farmName(p.getShopName())
+                    .productName(p.getName())
                     .deliveryAtText(g.getDesiredDeliveryAt().format(fmt))
                     .imageUrl(p.getImageMainUrl())
                     .price(price)
@@ -153,8 +172,8 @@ public class GroupPurchaseService {
         GroupPurchase g = groupRepo.findById(groupId).orElseThrow(() -> new BadRequestException("group"));
         if (!g.getLeader().getId().equals(leaderUserId)) throw new BadRequestException("forbidden");
 
-        Integer minP = req.getMinParticipants() != null ? req.getMinParticipants() : g.getMinParticipants();
-        Integer maxP = req.getMaxParticipants() != null ? req.getMaxParticipants() : g.getMaxParticipants();
+        Integer minP = (req.getMinParticipants() != null) ? req.getMinParticipants() : g.getMinParticipants();
+        Integer maxP = (req.getMaxParticipants() != null) ? req.getMaxParticipants() : g.getMaxParticipants();
         if (minP > maxP) throw new BadRequestException("min>max");
 
         int current = activeCount(groupId);
@@ -212,21 +231,27 @@ public class GroupPurchaseService {
 
     private int safeSumQuantity(Long groupId) {
         try {
-            Long v = partRepo.sumQuantityByGroupPurchaseIdAndStatusIn(groupId, List.of(ParticipantStatus.APPLIED, ParticipantStatus.PAID));
-            return v == null ? 0 : v.intValue();
+            Long v = partRepo.sumQuantityByGroupPurchaseIdAndStatusIn(
+                    groupId, List.of(ParticipantStatus.APPLIED, ParticipantStatus.PAID));
+            return (v == null) ? 0 : v.intValue();
         } catch (Exception e) {
             return 0;
         }
     }
 
     private int activeCount(Long groupId) {
-        return Math.toIntExact(partRepo.countByGroupPurchase_IdAndStatusIn(
-                groupId, List.of(ParticipantStatus.APPLIED, ParticipantStatus.PAID)));
+        return Math.toIntExact(
+                partRepo.countByGroupPurchase_IdAndStatusIn(
+                        groupId, List.of(ParticipantStatus.APPLIED, ParticipantStatus.PAID)
+                )
+        );
     }
 
     private boolean allPaid(Long groupId) {
-        long total = partRepo.countByGroupPurchase_IdAndStatusIn(groupId, List.of(ParticipantStatus.APPLIED, ParticipantStatus.PAID));
-        long paid = partRepo.countByGroupPurchase_IdAndStatusIn(groupId, List.of(ParticipantStatus.PAID));
+        long total = partRepo.countByGroupPurchase_IdAndStatusIn(
+                groupId, List.of(ParticipantStatus.APPLIED, ParticipantStatus.PAID));
+        long paid = partRepo.countByGroupPurchase_IdAndStatusIn(
+                groupId, List.of(ParticipantStatus.PAID));
         return total > 0 && total == paid;
     }
 
@@ -245,7 +270,8 @@ public class GroupPurchaseService {
         Product p = g.getProduct();
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy년 M월 d일 a h시", Locale.KOREAN);
         Integer price = p.getPrice();
-        String priceText = price != null ? String.format("%,d원", price) : null;
+        String priceText = (price != null) ? String.format("%,d원", price) : null;
+
         return GroupPurchaseDetailViewResponse.builder()
                 .id(g.getId())
                 .imageUrl(p.getImageMainUrl())
