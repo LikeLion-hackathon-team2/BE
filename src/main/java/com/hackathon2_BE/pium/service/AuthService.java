@@ -25,7 +25,17 @@ public class AuthService {
             throw new IllegalArgumentException("아이디 또는 비밀번호가 올바르지 않습니다.");
         }
 
-        String token = tokenProvider.createToken(user.getUsername(), user.getRole().name());
-        return new LoginResponse("Bearer", token, tokenProvider.getExpiresInSeconds());
+        // JWT에는 대문자(ENUM 원형), 응답 JSON에는 소문자 권장
+        String roleUpper = user.getRole().name();
+        String roleLower = roleUpper.toLowerCase();
+
+        String token = tokenProvider.createToken(user.getUsername(), roleUpper);
+
+        return LoginResponse.builder()
+                .tokenType("Bearer")
+                .accessToken(token)
+                .expiresIn(tokenProvider.getExpiresInSeconds())
+                .role(roleLower)
+                .build();
     }
 }

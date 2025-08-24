@@ -37,8 +37,9 @@ public class AuthController {
                               "message": "로그인 성공",
                               "data": {
                                 "tokenType": "Bearer",
-                                "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-                                "expiresIn": 3600
+                                "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+                                "expiresIn": 3600,
+                                "role": "consumer"
                               }
                             }
                             """)
