@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 
 import com.hackathon2_BE.pium.dto.ApiResponse;
 import com.hackathon2_BE.pium.dto.MeResponse;
-import com.hackathon2_BE.pium.dto.UserDTO;
+import com.hackathon2_BE.pium.dto.UserSignupRequest;
 import com.hackathon2_BE.pium.dto.UserSignupResponse;
 import com.hackathon2_BE.pium.entity.User;
 import com.hackathon2_BE.pium.service.UserService;
@@ -60,7 +60,7 @@ public class UserController {
             )
     )
     @PostMapping("/signup")
-    public ResponseEntity<ApiResponse<UserSignupResponse>> signup(@RequestBody UserDTO userDTO) {
+    public ResponseEntity<ApiResponse<UserSignupResponse>> signup(@RequestBody UserSignupRequest userDTO) {
         User user = userService.signup(userDTO);
         UserSignupResponse data = UserSignupResponse.of(user);
         return ResponseEntity.status(201)
