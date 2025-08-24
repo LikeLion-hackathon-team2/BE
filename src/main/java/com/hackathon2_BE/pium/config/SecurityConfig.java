@@ -32,7 +32,9 @@ public class SecurityConfig {
     private String corsAllowedOrigins;
 
     @Bean
-    public PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
@@ -50,20 +52,32 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(req -> req
-                        .requestMatchers(
-                                "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**",
-                                "/swagger-resources/**", "/webjars/**"
-                        ).permitAll()
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/user/signup", "/api/auth/login").permitAll()
-                        .requestMatchers("/api/product/**").permitAll()
-                        .requestMatchers("/api/seller/**").permitAll()
-                        .anyRequest().authenticated()
-                )
+                .authorizeHttpRequests(auth -> {
+                    // Swagger (해커톤 편의상 공개)
+                    auth.requestMatchers(
+                            "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**",
+                            "/swagger-resources/**", "/webjars/**"
+                    ).permitAll();
+
+                    // 헬스체크
+                    auth.requestMatchers("/actuator/health", "/actuator/info").permitAll();
+
+                    // Preflight
+                    auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
+
+                    // 회원가입/로그인
+                    auth.requestMatchers("/api/user/signup", "/api/auth/login").permitAll();
+
+                    // 공개 읽기 전용(목록/상세): GET만 허용
+                    auth.requestMatchers(HttpMethod.GET, "/api/product/**", "/api/seller/**").permitAll();
+
+                    // 그 외는 인증 필요
+                    auth.anyRequest().authenticated();
+                })
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable());
 
+        // JWT 필터
         http.addFilterBefore(
                 new JwtAuthenticationFilter(tokenProvider, userDetailsService),
                 UsernamePasswordAuthenticationFilter.class
@@ -80,10 +94,10 @@ public class SecurityConfig {
                 .collect(Collectors.toList());
 
         CorsConfiguration cfg = new CorsConfiguration();
-        cfg.setAllowedOrigins(allowedOrigins);
-        cfg.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
+        cfg.setAllowedOrigins(allowedOrigins); // withCredentials=true → * 금지
+        cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));
-        cfg.setExposedHeaders(List.of("Authorization","Location","Content-Disposition"));
+        cfg.setExposedHeaders(List.of("Authorization", "Location", "Content-Disposition"));
         cfg.setAllowCredentials(true);
         cfg.setMaxAge(3600L);
 

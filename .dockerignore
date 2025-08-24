@@ -1,20 +1,39 @@
-# VCS / IDE / OS
+# --- VCS / IDE / OS
 .git
 .gitignore
-.idea
-.vscode
-.DS_Store
-Thumbs.db
+**/.idea
+**/.vscode
+**/.settings
+**/.classpath
+**/.project
+**/.DS_Store
+**/Thumbs.db
 
-# Gradle cache / outputs
+# --- Gradle / 빌드 산출물
 .gradle
+**/build
+!build/libs/
+!build/libs/*.jar     # ← fat-jar만 포함
 out
-build
-# build는 제외하지만 jar만 다시 포함
-!build/libs/*.jar
+target
 
-# Frontend (있으면)
+# --- Node(프론트) 폴더가 있을 때
 node_modules
+**/node_modules
+dist
 
-# Secrets (compose는 .env를 따로 읽으니 여기서 제외 OK)
+# --- Docker/Compose
+docker-compose*.yml
+.dockerignore
+
+# --- 비밀/자격증명
 .env
+**/*.pem
+**/*.key
+**/*.crt
+**/*.p12
+
+# --- 로그/임시
+*.log
+logs
+tmp
