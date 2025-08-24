@@ -63,6 +63,7 @@ public class MeResponse {
         }
         m.groupPurchases = joined;
 
+
         // 주문
         m.orders = myOrders.stream().map(OrderDto::from).collect(Collectors.toList());
         return m;

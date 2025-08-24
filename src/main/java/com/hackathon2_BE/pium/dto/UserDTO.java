@@ -7,6 +7,7 @@ import lombok.*;
 @NoArgsConstructor @AllArgsConstructor @Builder
 @Schema(name = "UserSignupRequest", description = "회원가입 요청")
 public class UserDTO {
+
     @Schema(description = "사용자 아이디", example = "pium_user1")
     private String username;
 
