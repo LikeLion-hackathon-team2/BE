@@ -43,4 +43,6 @@ public class GroupPurchaseParticipant {
 
     @CreationTimestamp
     @Column(name = "joined_at", updatable = false)
-    private LocalDateTime joinedAt;}
+    private LocalDateTime joinedAt;
+
+}
