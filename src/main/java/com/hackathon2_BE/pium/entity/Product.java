@@ -23,7 +23,6 @@ public class Product {
     // DB 컬럼: productId (PK)
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "productId")
     private Long id;
 
     // DB 컬럼: userId
@@ -36,7 +35,7 @@ public class Product {
 
     // DB 컬럼: categoryId (FK 값 저장, 카테고리 PK는 category.category_id)
     @ManyToOne(fetch = FetchType.LAZY, optional = true)
-    @JoinColumn(name = "categoryId")
+    @JoinColumn(name = "category_id")
     private Category category;
 
     // DB 컬럼: name
@@ -64,6 +63,9 @@ public class Product {
     // DB 컬럼: createdAt
     @Column(name = "createdAt", updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "updatedAt")
+    private LocalDateTime updatedAt;
 
     // DB 컬럼: unit_label (snake_case)
     @Column(name = "unit_label", length = 20)
@@ -94,5 +96,11 @@ public class Product {
     @PrePersist
     protected void onCreate() {
         if (this.createdAt == null) this.createdAt = LocalDateTime.now();
+        if (this.updatedAt == null) this.updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
     }
 }

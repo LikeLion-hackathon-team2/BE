@@ -14,7 +14,7 @@ public class CartItem {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "cart_item_id")
+    @Column(name = "cartItemId")
     private Long cartItemId;
 
     @Column(name = "user_id", nullable = false)
@@ -34,4 +34,12 @@ public class CartItem {
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
+
+    @PrePersist
+    public void prePersist() {
+        if (createdAt == null) createdAt = LocalDateTime.now();
+        if (subtotal == null && unitPrice != null && quantity != null) {
+            subtotal = unitPrice * quantity;
+        }
+    }
 }

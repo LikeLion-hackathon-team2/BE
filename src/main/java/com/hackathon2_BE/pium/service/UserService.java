@@ -1,21 +1,12 @@
 package com.hackathon2_BE.pium.service;
 
-import com.hackathon2_BE.pium.dto.MeResponse;
-import com.hackathon2_BE.pium.dto.UserSignupRequest;
-import com.hackathon2_BE.pium.entity.GroupPurchase;
-import com.hackathon2_BE.pium.entity.GroupPurchaseParticipant;
-import com.hackathon2_BE.pium.entity.Order;
-import com.hackathon2_BE.pium.entity.User;
-import com.hackathon2_BE.pium.entity.Shop;
-import com.hackathon2_BE.pium.entity.DepositAccount;
-import com.hackathon2_BE.pium.exception.InvalidInputException;
-import com.hackathon2_BE.pium.exception.UnauthenticatedException;
-import com.hackathon2_BE.pium.exception.UsernameAlreadyExistsException;
-import com.hackathon2_BE.pium.repository.GroupPurchaseParticipantRepository;
-import com.hackathon2_BE.pium.repository.GroupPurchaseRepository;
-import com.hackathon2_BE.pium.repository.OrderRepository;
-import com.hackathon2_BE.pium.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -23,7 +14,23 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
+import com.hackathon2_BE.pium.dto.MeResponse;
+import com.hackathon2_BE.pium.dto.UserSignupRequest;
+import com.hackathon2_BE.pium.entity.DepositAccount;
+import com.hackathon2_BE.pium.entity.GroupPurchase;
+import com.hackathon2_BE.pium.entity.GroupPurchaseParticipant;
+import com.hackathon2_BE.pium.entity.Order;
+import com.hackathon2_BE.pium.entity.Shop;
+import com.hackathon2_BE.pium.entity.User;
+import com.hackathon2_BE.pium.exception.InvalidInputException;
+import com.hackathon2_BE.pium.exception.UnauthenticatedException;
+import com.hackathon2_BE.pium.exception.UsernameAlreadyExistsException;
+import com.hackathon2_BE.pium.repository.GroupPurchaseParticipantRepository;
+import com.hackathon2_BE.pium.repository.GroupPurchaseRepository;
+import com.hackathon2_BE.pium.repository.OrderRepository;
+import com.hackathon2_BE.pium.repository.UserRepository;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -133,7 +140,9 @@ public class UserService {
     @Transactional
     public MeResponse getMyProfile(Long userId) {
         User user = userRepository.findById(userId).orElseThrow();
-
+        Shop shop = user.getShop();
+        if (shop != null) shop.getDepositAccount();
+        
         // 1) 내가 '참여'한 공동구매
         List<GroupPurchaseParticipant> myParticipations = gppRepository.findDeepByUserId(userId);
 
