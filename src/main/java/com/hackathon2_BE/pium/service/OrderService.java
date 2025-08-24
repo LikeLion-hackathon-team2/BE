@@ -39,10 +39,12 @@ public class OrderService {
         if (ids.isEmpty()) throw new InvalidInputException("cart_item_ids는 비어 있을 수 없습니다.");
 
         var items = cartItemRepository.findByCartItemIdInAndUserId(ids, userId);
-        if (items.isEmpty()) return new OrderPreviewResponse(List.of(),
+        if (items.isEmpty()) return new OrderPreviewResponse(
+                List.of(),
                 new OrderPreviewTotals(0,0,0),
                 new OrderPreviewDelivery(req.desiredDeliveryDate(), req.desiredDeliveryDate(), List.of()),
-                supportedMethods());
+                supportedMethods()
+        );
 
         var pids = items.stream().map(CartItem::getProductId).collect(Collectors.toSet());
         var productMap = productRepository.findAllById(pids).stream()
@@ -54,7 +56,7 @@ public class OrderService {
 
         for (var ci : items) {
             var p = productMap.get(ci.getProductId());
-            if (p == null) throw new ResourceNotFoundException("상품을 찾을 수 없습니다. (product_id="+ci.getProductId()+")");
+            if (p == null) throw new ResourceNotFoundException("상품을 찾을 수 없습니다. (product_id=" + ci.getProductId() + ")");
 
             int currentPrice = Optional.ofNullable(p.getPrice()).orElse(0);
             int stock = Optional.ofNullable(p.getStockQuantity()).orElse(0);
@@ -96,9 +98,9 @@ public class OrderService {
     @Transactional
     public CreateOrderResponse create(Long userId, CreateOrderRequest req, String idemKey){
         if (userId == null) throw new org.springframework.security.core.AuthenticationException("UNAUTHORIZED") {};
-        if (req.cartItemIds()==null || req.cartItemIds().isEmpty()) throw new InvalidInputException("cart_item_ids는 필수입니다.");
-        if (req.shipping()==null) throw new InvalidInputException("shipping은 필수입니다.");
-        if (req.paymentMethod()==null || req.paymentMethod().isBlank()) throw new InvalidInputException("payment_method는 필수입니다.");
+        if (req.cartItemIds() == null || req.cartItemIds().isEmpty()) throw new InvalidInputException("cart_item_ids는 필수입니다.");
+        if (req.shipping() == null) throw new InvalidInputException("shipping은 필수입니다.");
+        if (req.paymentMethod() == null || req.paymentMethod().isBlank()) throw new InvalidInputException("payment_method는 필수입니다.");
 
         var preview = preview(userId, new OrderPreviewRequest(req.cartItemIds(), req.desiredDeliveryDate()));
 
@@ -119,9 +121,17 @@ public class OrderService {
         for (var ci : cartItems) {
             var oi = new OrderItem();
             oi.setOrder(order);
-            oi.setProductId(ci.getProductId());
+
+            var productRef = productRepository.getReferenceById(ci.getProductId());
+            oi.setProduct(productRef);
+
             oi.setQuantity(ci.getQuantity());
             oi.setTotalPrice(ci.getQuantity() * ci.getUnitPrice());
+
+            // Order에 컬렉션이 null일 수 있으면 방어
+            if (order.getOrderItems() == null) {
+                order.setOrderItems(new ArrayList<>());
+            }
             order.getOrderItems().add(oi);
         }
 
@@ -140,9 +150,14 @@ public class OrderService {
                 idemKey
         );
 
-        var orderPart = new CreateOrderResponse.OrderPart(order.getOrderId(), order.getOrderStatus().name(),
-                new OrderPreviewTotals(order.getTotalProductsPrice(), order.getShippingFee(), order.getGrandTotal()));
-        var payPart = new CreateOrderResponse.PaymentPart(init.provider(), init.method(), init.paymentToken(), init.redirectUrl());
+        var orderPart = new CreateOrderResponse.OrderPart(
+                order.getOrderId(),
+                order.getOrderStatus().name(),
+                new OrderPreviewTotals(order.getTotalProductsPrice(), order.getShippingFee(), order.getGrandTotal())
+        );
+        var payPart = new CreateOrderResponse.PaymentPart(
+                init.provider(), init.method(), init.paymentToken(), init.redirectUrl()
+        );
         return new CreateOrderResponse(orderPart, payPart);
     }
 }

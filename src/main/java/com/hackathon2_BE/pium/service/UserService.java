@@ -1,7 +1,7 @@
 package com.hackathon2_BE.pium.service;
 
 import com.hackathon2_BE.pium.dto.MeResponse;
-import com.hackathon2_BE.pium.dto.UserDTO;
+import com.hackathon2_BE.pium.dto.UserSignupRequest;
 import com.hackathon2_BE.pium.entity.GroupPurchase;
 import com.hackathon2_BE.pium.entity.GroupPurchaseParticipant;
 import com.hackathon2_BE.pium.entity.Order;
@@ -15,14 +15,11 @@ import com.hackathon2_BE.pium.repository.GroupPurchaseParticipantRepository;
 import com.hackathon2_BE.pium.repository.GroupPurchaseRepository;
 import com.hackathon2_BE.pium.repository.OrderRepository;
 import com.hackathon2_BE.pium.repository.UserRepository;
-
 import lombok.RequiredArgsConstructor;
-
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
-
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,7 +37,7 @@ public class UserService {
 
     // ===================== 회원가입 =====================
     @Transactional
-    public User signup(UserDTO userDTO) {
+    public User signup(UserSignupRequest userDTO) {
 
         if (!isValidUsername(userDTO.getUsername()))
             throw new InvalidInputException("아이디는 4~20자의 영문 소문자, 숫자, 밑줄만 허용됩니다.");
@@ -58,7 +55,7 @@ public class UserService {
 
         boolean isSeller = "seller".equalsIgnoreCase(userDTO.getRole());
 
-        // ── 사업자번호(판매자만─
+        // ── 사업자번호(판매자만) ──
         String normalizedBusinessNumber = null;
         if (isSeller) {
             normalizedBusinessNumber = normalizeBusinessNumber(userDTO.getBusinessNumber());
@@ -114,7 +111,7 @@ public class UserService {
                 .shop(shop)
                 .build();
 
-        // 양방향 고정: shop.owner 설정 (편의 메서드가 없다면 직접 연결)
+        // 양방향 고정: shop.owner 설정
         if (shop != null) {
             shop.setOwner(user);
         }
@@ -129,8 +126,6 @@ public class UserService {
         String username = getCurrentUsernameOrThrow();
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다."));
-        // 기존: return MeResponse.from(user);
-        // 변경: 상세 프로필 조립 메서드로 위임
         return getMyProfile(user.getId());
     }
 
@@ -139,16 +134,16 @@ public class UserService {
     public MeResponse getMyProfile(Long userId) {
         User user = userRepository.findById(userId).orElseThrow();
 
-        // 1) 내가 '참여'한 공동구매 (N+1 방지 fetch-join)
+        // 1) 내가 '참여'한 공동구매
         List<GroupPurchaseParticipant> myParticipations = gppRepository.findDeepByUserId(userId);
 
-        // 2) 내가 '개설'한 공동구매 (상점-오너 기준)
+        // 2) 내가 '개설'한 공동구매
         List<GroupPurchase> myOwned = gpRepository.findOwnedByUserId(userId);
 
-        // 3) 내가 '구매자'로 한 모든 주문 (아이템/상품/이미지까지 fetch)
+        // 3) 내가 '구매자'로 한 모든 주문
         List<Order> myOrders = orderRepository.findDeepByBuyerId(userId);
 
-        // 4) 공구별 참여 인원 수 집계 → 배송비(5000/n) 계산에 사용
+        // 4) 공구별 참여 인원 수 집계 → 배송비(5000/n)
         Set<Long> gpIds = new HashSet<>();
         myParticipations.stream()
                 .map(GroupPurchaseParticipant::getGroupPurchase)
@@ -170,7 +165,7 @@ public class UserService {
             }
         }
 
-        // 5) DTO 변환 (이미지 선택 + 배송비 5000/n 로직은 MeResponse 내부에서 처리)
+        // 5) DTO 변환
         return MeResponse.of(user, myParticipations, myOwned, myOrders, participantCountByGpId);
     }
 
