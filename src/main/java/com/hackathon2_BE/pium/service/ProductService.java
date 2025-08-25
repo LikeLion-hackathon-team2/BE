@@ -1,8 +1,8 @@
 package com.hackathon2_BE.pium.service;
 
-import com.hackathon2_BE.pium.dto.CreateProductRequest;            // ✅ 빠졌던 import
+import com.hackathon2_BE.pium.dto.CreateProductRequest;
 import com.hackathon2_BE.pium.dto.ProductOptionResponse;
-import com.hackathon2_BE.pium.dto.ProductResponse;                 // DTO 매핑용
+import com.hackathon2_BE.pium.dto.ProductResponse;
 import com.hackathon2_BE.pium.dto.SellerProductListResponse;
 import com.hackathon2_BE.pium.dto.UploadProductImageResponse;
 import com.hackathon2_BE.pium.entity.Category;
@@ -27,6 +27,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -50,7 +51,30 @@ public class ProductService {
 
     private static final Set<String> ALLOWED_EXT = Set.of("jpg", "jpeg", "png", "webp");
 
-    // 2-1) 상품 목록/검색/필터
+    // ===== 공통 유틸 =====
+
+    /** /uploads/... 형태의 경로를 절대 URL로 변환 */
+    private String toAbsoluteUrl(String path) {
+        if (path == null || path.isBlank()) return null;
+        if (path.startsWith("http://") || path.startsWith("https://")) return path;
+        String base = ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString();
+        return base + path;
+    }
+
+    /** 제품의 메인이미지 경로를 계산 (product.imageMainUrl 우선, 없으면 product_image 조회) */
+    @Transactional(readOnly = true)
+    protected String resolveMainImageAbsoluteUrl(Product p) {
+        String path = p.getImageMainUrl();
+        if (path == null || path.isBlank()) {
+            path = productImageRepository.findFirstByProduct_IdAndIsMainTrue(p.getId())
+                    .map(ProductImage::getImageUrl)
+                    .orElse(null);
+        }
+        return toAbsoluteUrl(path);
+    }
+
+    // ===== 목록/검색 =====
+
     @Transactional(readOnly = true)
     public Page<Product> getProductList(String keyword, Long categoryId, Pageable pageable){
         if (keyword != null && !keyword.isBlank()){
@@ -62,26 +86,30 @@ public class ProductService {
         }
     }
 
-    // 목록 DTO 매핑 헬퍼
+    // ✅ 목록 DTO 매핑 시 이미지 URL 포함
     @Transactional(readOnly = true)
     public Page<ProductResponse> getProductListDto(String keyword, Long categoryId, Pageable pageable) {
-        return getProductList(keyword, categoryId, pageable).map(ProductResponse::from);
+        return getProductList(keyword, categoryId, pageable)
+                .map(p -> ProductResponse.from(p, resolveMainImageAbsoluteUrl(p)));
     }
 
-    // 2-2) 상품 상세 정보 조회
+    // ===== 상세 =====
+
     @Transactional(readOnly = true)
     public Product getProductById(Long id){
         return productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("해당 상품을 찾을 수 없습니다."));
     }
 
-    // 상세 DTO 헬퍼
+    // ✅ 상세 DTO도 이미지 URL 포함
     @Transactional(readOnly = true)
     public ProductResponse getProductResponse(Long id) {
-        return ProductResponse.from(getProductById(id));
+        Product p = getProductById(id);
+        return ProductResponse.from(p, resolveMainImageAbsoluteUrl(p));
     }
 
-    // 3-1) 상품 구매 옵션 조회
+    // ===== 옵션 =====
+
     @Transactional(readOnly = true)
     public ProductOptionResponse getProductOptions(Long productId) {
         Product p = productRepository.findById(productId)
@@ -119,17 +147,16 @@ public class ProductService {
         );
     }
 
-    // 6-1) 상품 등록(1)-상품 기본정보 생성
+    // ===== 등록 =====
+
     @Transactional
     public Product createBasicProduct(Long requesterUserId, CreateProductRequest req) {
-        // 1) 인증/권한
         User seller = userRepository.findById(requesterUserId)
                 .orElseThrow(() -> new UnauthenticatedException("인증이 필요합니다."));
         if (seller.getRole() == null || !seller.getRole().name().equals("SELLER")) {
             throw new ForbiddenException("판매자 권한이 필요합니다.");
         }
 
-        // 2) 카테고리
         Category category = null;
         if (req.getCategoryId() != null) {
             Long cid = req.getCategoryId();
@@ -145,7 +172,6 @@ public class ProductService {
             });
         }
 
-        // 3) 상품 저장
         Product p = Product.builder()
                 .name(req.getName())
                 .price(req.getPrice())
@@ -160,7 +186,6 @@ public class ProductService {
         return productRepository.save(p);
     }
 
-    // 6-2) 상품 등록(2)-상품 이미지 업로드
     @Transactional
     public UploadProductImageResponse uploadProductImage(Long sellerId,
                                                          Long productId,
@@ -171,7 +196,6 @@ public class ProductService {
             throw new InvalidInputException("파일이 비어있습니다.");
         }
 
-        // 파일 검증 (확장자)
         String original = file.getOriginalFilename();
         String ext = (original != null && original.contains(".")) ?
                 original.substring(original.lastIndexOf('.') + 1).toLowerCase() : "";
@@ -179,35 +203,28 @@ public class ProductService {
             throw new InvalidInputException("지원하지 않는 파일 형식입니다.(jpg/png/webp)");
         }
 
-        // 상품 조회 + 소유자 검증
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("상품을 찾을 수 없습니다."));
         if (product.getUserId() == null || !product.getUserId().equals(sellerId)) {
             throw new ForbiddenException("해당 상품의 소유자가 아닙니다.");
         }
 
-        // 저장 경로 준비
         try {
             Path dir = Paths.get(uploadRootDir, "products", String.valueOf(productId)).toAbsolutePath();
             Files.createDirectories(dir);
 
             String newName = UUID.randomUUID().toString().replace("-", "") + "." + ext;
             Path dest = dir.resolve(newName);
-
-            // 저장
             file.transferTo(dest.toFile());
 
-            // 정적 접근 URL 구성 (/uploads/** 로 매핑)
             String url = "/uploads/products/" + productId + "/" + newName;
 
-            // 대표 이미지 플래그 정리
             if (isMain) {
                 productImageRepository.clearMainByProductId(productId);
                 product.setImageMainUrl(url);
                 productRepository.save(product);
             }
 
-            // 엔티티 저장
             ProductImage saved = productImageRepository.save(
                     ProductImage.builder()
                             .product(product)
@@ -217,7 +234,6 @@ public class ProductService {
                             .build()
             );
 
-            // 응답 DTO 구성 (AI는 미적용)
             UploadProductImageResponse.Image imageDto = UploadProductImageResponse.Image.builder()
                     .image_id(saved.getId())
                     .image_url(saved.getImageUrl())
@@ -241,7 +257,8 @@ public class ProductService {
         }
     }
 
-    // 6-3) 판매자 상품 목록 조회
+    // ===== 판매자 목록 =====
+
     @Transactional(readOnly = true)
     public SellerProductListResponse getSellerProducts(Long sellerId,
                                                        String q,
@@ -253,9 +270,7 @@ public class ProductService {
 
         int p = (page == null || page < 1) ? 1 : page; // 1-based 입력
         int s = (size == null) ? 20 : size;
-        if (s < 1 || s > 100) {
-            throw new InvalidInputException("size는 1~100 사이여야 합니다.");
-        }
+        if (s < 1 || s > 100) throw new InvalidInputException("size는 1~100 사이여야 합니다.");
 
         String normalizedStatus = null;
         if (status != null && !status.isBlank()) {
@@ -277,7 +292,7 @@ public class ProductService {
 
         PageRequest pageable = PageRequest.of(p - 1, s, sortObj);
 
-        Page<Product> pageResult = productRepository.findSellerProducts(
+        var pageResult = productRepository.findSellerProducts(
                 sellerId,
                 (q == null || q.isBlank()) ? null : q,
                 categoryId,
@@ -285,7 +300,7 @@ public class ProductService {
                 pageable
         );
 
-        List<SellerProductListResponse.Item> items = pageResult.getContent().stream()
+        var items = pageResult.getContent().stream()
                 .map(pv -> {
                     SellerProductListResponse.Freshness freshness = (pv.getGradeId() == null) ? null
                             : SellerProductListResponse.Freshness.builder()
@@ -304,14 +319,14 @@ public class ProductService {
                             .stock_quantity(pv.getStockQuantity())
                             .status(computedStatus)
                             .category_id(pv.getCategory() != null ? pv.getCategory().getId() : null)
-                            .main_image_url(pv.getImageMainUrl())
+                            .main_image_url(pv.getImageMainUrl()) // 필요하면 toAbsoluteUrl로 바꿔도 됨
                             .freshness(freshness)
                             .created_at(pv.getCreatedAt())
                             .build();
                 })
                 .collect(Collectors.toList());
 
-        SellerProductListResponse.Pagination pagination = SellerProductListResponse.Pagination.builder()
+        var pagination = SellerProductListResponse.Pagination.builder()
                 .page(p)
                 .size(s)
                 .total(pageResult.getTotalElements())
@@ -323,7 +338,8 @@ public class ProductService {
                 .build();
     }
 
-    // === 신선도 라벨: 3단계(3=매우 신선, 2=양호, 1=판매임박) ===
+    // ===== 신선도 =====
+
     private String toFreshnessLabel(Long gradeId) {
         if (gradeId == null) return null;
         return switch (gradeId.intValue()) {
@@ -334,7 +350,6 @@ public class ProductService {
         };
     }
 
-    // 업로드 응답용 freshness DTO
     private UploadProductImageResponse.Freshness toUploadFreshness(Long gradeId) {
         if (gradeId == null) return null;
         String label = toFreshnessLabel(gradeId);

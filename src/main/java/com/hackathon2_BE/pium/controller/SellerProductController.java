@@ -6,15 +6,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestPart;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile; // ← ApiResponses만 import
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.hackathon2_BE.pium.dto.ApiResponse;
 import com.hackathon2_BE.pium.dto.CreateProductRequest;
@@ -47,7 +40,7 @@ public class SellerProductController {
 
     @Operation(summary = "상품 생성", description = "판매자가 기본 정보를 입력해 상품을 생성합니다.")
     @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse( // ← FQN
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "201",
                     description = "생성 성공",
                     content = @Content(mediaType = "application/json",
@@ -86,14 +79,18 @@ public class SellerProductController {
         }
         """)
     ))
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<Map<String, Object>>> create(
             @Valid @RequestBody CreateProductRequest req,
             @Parameter(hidden = true) Authentication authentication
     ) {
         Long userId = extractUserId(authentication);
+
+        // 1) 기본 상품 생성(서비스 @Transactional)
         Product saved = productService.createBasicProduct(userId, req);
-        ProductResponse body = ProductResponse.from(saved);
+        // 2) DTO는 서비스 헬퍼로 재구성(트랜잭션/LAZY 안전)
+        ProductResponse body = productService.getProductResponse(saved.getId());
+
         ApiResponse<Map<String, Object>> api =
                 new ApiResponse<>(true, "CREATED", "상품이 생성되었습니다.", Map.of("product", body));
         return ResponseEntity.status(HttpStatus.CREATED).body(api);
@@ -102,44 +99,42 @@ public class SellerProductController {
     @Operation(summary = "판매자 상품 목록", description = "판매자의 상품을 조건별로 조회합니다.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "201",
+                    responseCode = "200",
                     description = "조회 성공",
                     content = @Content(mediaType = "application/json",
-                            examples = @ExampleObject(name = "create-product-ok", value = """
+                            examples = @ExampleObject(name = "seller-list-ok", value = """
                 {
-  "success": true,
-  "code": "OK",
-  "message": "판매자 상품 목록 조회 성공",
-  "data": {
-    "items": [
-      {
-        "product_id": 321,
-        "name": "장미 (Roses)",
-        "price": 3000,
-        "stock_quantity": 120,
-        "status": "active",
-        "category_id": 21,
-        "main_image_url": "https://cdn.example.com/p/321_main.jpg",
-        "freshness": { "grade_id": 4, "grade": 4, "label": "매우 신선" },
-        "created_at": "2025-08-09T10:30:00Z",
-        "updated_at": "2025-08-10T08:15:00Z"
-      }
-    ],
-    "pagination": { "page": 1, "size": 20, "total": 56 }
-  }
-}
-
+                  "success": true,
+                  "code": "OK",
+                  "message": "판매자 상품 목록 조회 성공",
+                  "data": {
+                    "items": [
+                      {
+                        "product_id": 321,
+                        "name": "장미 (Roses)",
+                        "price": 3000,
+                        "stock_quantity": 120,
+                        "status": "active",
+                        "category_id": 21,
+                        "main_image_url": "https://cdn.example.com/p/321_main.jpg",
+                        "freshness": { "grade_id": 4, "grade": 4, "label": "매우 신선" },
+                        "created_at": "2025-08-09T10:30:00Z"
+                      }
+                    ],
+                    "pagination": { "page": 1, "size": 20, "total": 56 }
+                  }
+                }
                 """))
             )
     })
-    @GetMapping
+    @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<SellerProductListResponse>> getSellerProducts(
             @Parameter(description = "검색어", example = "사과") @RequestParam(name = "q", required = false) String q,
             @Parameter(description = "카테고리 ID", example = "2") @RequestParam(name = "category_id", required = false) Long categoryId,
             @Parameter(description = "상태 필터(ex. active | out_of_stock)", example = "active") @RequestParam(name = "status", required = false) String status,
             @Parameter(description = "정렬 키(ex. latest | price_asc | price_desc | stock_asc | stock_desc)", example = "latest") @RequestParam(name = "sort", required = false) String sort,
-            @Parameter(description = "페이지", example = "0") @RequestParam(name = "page", required = false) Integer page,
-            @Parameter(description = "사이즈", example = "20") @RequestParam(name = "size", required = false) Integer size,
+            @Parameter(description = "페이지(1-base 또는 0/1 허용)", example = "1") @RequestParam(name = "page", required = false) Integer page,
+            @Parameter(description = "사이즈(1~100)", example = "20") @RequestParam(name = "size", required = false) Integer size,
             @Parameter(hidden = true) Authentication authentication
     ) {
         Long sellerId = extractUserId(authentication);
@@ -152,7 +147,7 @@ public class SellerProductController {
 
     @Operation(summary = "상품 이미지 업로드", description = "멀티파트로 상품 이미지를 업로드합니다. 메인 여부/AI 후처리 여부 지정 가능.")
     @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse( // ← FQN
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "201",
                     description = "업로드 성공",
                     content = @Content(mediaType = "application/json",
@@ -166,7 +161,7 @@ public class SellerProductController {
                       "image_id": 9001,
                       "image_url": "https://cdn.example.com/p/201-main.jpg",
                       "is_main": true,
-                      "ai_processed": true
+                      "ai_processed": false
                     },
                     "product": {
                       "product_id": 201,
@@ -180,7 +175,8 @@ public class SellerProductController {
     })
     @PostMapping(
             value = "/{productId}/images",
-            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE
     )
     @Transactional
     public ResponseEntity<ApiResponse<UploadProductImageResponse>> uploadProductImage(
@@ -206,7 +202,10 @@ public class SellerProductController {
         if (principal instanceof CustomUserDetails cud && cud.getUser() != null && cud.getUser().getId() != null) {
             return cud.getUser().getId();
         }
-        try { return Long.parseLong(auth.getName()); }
-        catch (NumberFormatException e) { throw new IllegalStateException("인증 주체에서 userId를 추출할 수 없습니다."); }
+        try {
+            return Long.parseLong(auth.getName());
+        } catch (NumberFormatException e) {
+            throw new IllegalStateException("인증 주체에서 userId를 추출할 수 없습니다.");
+        }
     }
 }

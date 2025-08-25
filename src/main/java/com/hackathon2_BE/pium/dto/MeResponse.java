@@ -5,6 +5,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.HashSet;
+import java.util.HashMap;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -30,6 +32,10 @@ public class MeResponse {
     public String businessNumber;
     public String createdAt;
 
+    // 👉 역할별 라우팅 힌트 (프론트에서 이 경로로 라우팅하면 됨)
+    @JsonProperty("nextPath")
+    public String nextPath;
+
     // ===== 섹션 =====
     @JsonProperty("groupPurchases")
     public List<GroupPurchaseDto> groupPurchases;
@@ -40,26 +46,26 @@ public class MeResponse {
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class ShopDto {
-    public Long id;
-    public String name;
+        public Long id;
+        public String name;
 
-    @JsonProperty("businessNumber")
-    public String ownerBusinessNumber;
+        @JsonProperty("businessNumber")
+        public String ownerBusinessNumber;
 
-    @JsonProperty("depositAccount")
-    public DepositAccountDto depositAccount;
+        @JsonProperty("depositAccount")
+        public DepositAccountDto depositAccount;
 
-    public static ShopDto of(Shop s) {
-        if (s == null) return null;
-        ShopDto d = new ShopDto();
-        d.id = s.getId();
-        d.name = s.getName();
-        User owner = s.getOwner();
-        d.ownerBusinessNumber = (owner != null) ? owner.getBusinessNumber() : null;
-        d.depositAccount = DepositAccountDto.from(s.getDepositAccount());
-        return d;
+        public static ShopDto of(Shop s) {
+            if (s == null) return null;
+            ShopDto d = new ShopDto();
+            d.id = s.getId();
+            d.name = s.getName();
+            User owner = s.getOwner();
+            d.ownerBusinessNumber = (owner != null) ? owner.getBusinessNumber() : null;
+            d.depositAccount = DepositAccountDto.from(s.getDepositAccount());
+            return d;
+        }
     }
-}
 
     // ---------- 팩토리 ----------
     public static MeResponse of(
@@ -77,6 +83,9 @@ public class MeResponse {
         m.businessNumber = user.getBusinessNumber();
         m.createdAt = user.getCreatedAt() != null ? user.getCreatedAt().toString() : null;
 
+        // 역할별 기본 이동 경로 결정
+        m.nextPath = resolveNextPath(user.getRole());
+
         // 내가 '참여'한 공동구매
         List<GroupPurchaseDto> joined = myParticipations.stream()
                 .map(p -> GroupPurchaseDto.fromParticipation(
@@ -89,22 +98,32 @@ public class MeResponse {
         if (myOwned != null && !myOwned.isEmpty()) {
             Set<Long> exists = joined.stream().map(g -> g.groupPurchaseId).collect(Collectors.toSet());
             joined.addAll(
-                myOwned.stream()
-                       .filter(gp -> gp.getId() != null && !exists.contains(gp.getId()))
-                       .map(gp -> GroupPurchaseDto.fromOwned(
-                               gp,
-                               pickCount(participantCountByGpId, gp)
-                       ))
-                       .collect(Collectors.toList())
+                    myOwned.stream()
+                            .filter(gp -> gp.getId() != null && !exists.contains(gp.getId()))
+                            .map(gp -> GroupPurchaseDto.fromOwned(
+                                    gp,
+                                    pickCount(participantCountByGpId, gp)
+                            ))
+                            .collect(Collectors.toList())
             );
         }
         m.groupPurchases = joined;
 
-
-        // 주문erDto::from).collect(Collectors.toList());
+        // 주문
         m.orders = myOrders.stream().map(OrderDto::from).toList();
+
+        // 샵
         m.shop = ShopDto.of(user.getShop());
+
         return m;
+    }
+
+    private static String resolveNextPath(User.Role role) {
+        if (role == null) return "/";
+        return switch (role) {
+            case SELLER   -> "/seller/dashboard";
+            case CONSUMER -> "/"; // 필요 시 "/home" 등으로 변경
+        };
     }
 
     private static int pickCount(Map<Long, Integer> counts, GroupPurchase gp) {
@@ -232,7 +251,7 @@ public class MeResponse {
     }
 
     static class ImagePickers {
-        // 공구 카드: 상품 대표(ProductImage.isMain==true) → 첫 이미지 → (gp 자체 이미지는 참조 제거)
+        // 공구 카드: 상품 대표(ProductImage.isMain==true) → 첫 이미지
         static String pickForGroupPurchase(GroupPurchase gp) {
             if (gp == null) return null;
             Product product = gp.getProduct();

@@ -3,27 +3,26 @@ package com.hackathon2_BE.pium.controller;
 import com.hackathon2_BE.pium.dto.ApiResponse;
 import com.hackathon2_BE.pium.dto.ProductOptionResponse;
 import com.hackathon2_BE.pium.dto.ProductResponse;
-import com.hackathon2_BE.pium.entity.Product;
 import com.hackathon2_BE.pium.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import io.swagger.v3.oas.annotations.responses.ApiResponses; // ApiResponses만 import (각 ApiResponse는 FQN 사용)
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Map;
 
 @Tag(name = "Products", description = "상품 조회/상세/옵션 API")
 @RestController
-@RequestMapping("/api/product")
+@RequestMapping(value = "/api/product", produces = MediaType.APPLICATION_JSON_VALUE)
 @RequiredArgsConstructor
 public class ProductController {
 
@@ -39,23 +38,20 @@ public class ProductController {
             @Parameter(description = "카테고리 ID", example = "1") @RequestParam(required = false) Long categoryId,
             @Parameter(description = "페이지(0-base)", example = "0") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "페이지 크기", example = "10") @RequestParam(defaultValue = "10") int size
-    ){
+    ) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<Product> pageResult = productService.getProductList(keyword, categoryId, pageable);
 
-        List<ProductResponse> items = pageResult.getContent().stream()
-                .map(ProductResponse::from)
-                .toList();
+        // ✅ 서비스가 DTO 페이지를 만들어 반환 → LAZY 안전
+        Page<ProductResponse> pageResult = productService.getProductListDto(keyword, categoryId, pageable);
 
         Map<String, Object> data = Map.of(
-                "items", items,
+                "items", pageResult.getContent(),
                 "pagination", Map.of(
                         "page", page,
                         "size", size,
                         "total", pageResult.getTotalElements()
                 )
         );
-
         return ResponseEntity.ok(new ApiResponse<>(true, "OK", "목록 조회 성공", data));
     }
 
@@ -89,9 +85,11 @@ public class ProductController {
     })
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Map<String, ProductResponse>>> getProduct(
-            @Parameter(description = "상품 ID", example = "101") @PathVariable Long id){
-        Product product = productService.getProductById(id);
-        Map<String, ProductResponse> data = Map.of("product", ProductResponse.from(product));
+            @Parameter(description = "상품 ID", example = "101") @PathVariable Long id
+    ) {
+        // ✅ 서비스에서 트랜잭션 범위 내 DTO 변환까지 수행 → LAZY 안전
+        ProductResponse pr = productService.getProductResponse(id);
+        Map<String, ProductResponse> data = Map.of("product", pr);
         return ResponseEntity.ok(new ApiResponse<>(true, "OK", "상세 조회 성공", data));
     }
 
@@ -120,7 +118,8 @@ public class ProductController {
     })
     @GetMapping("/{id}/options")
     public ResponseEntity<ApiResponse<ProductOptionResponse>> getOptions(
-            @Parameter(description = "상품 ID", example = "101") @PathVariable Long id) {
+            @Parameter(description = "상품 ID", example = "101") @PathVariable Long id
+    ) {
         ProductOptionResponse data = productService.getProductOptions(id);
         return ResponseEntity.ok(new ApiResponse<>(true, "OK", "옵션 정보", data));
     }

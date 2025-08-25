@@ -11,10 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -23,46 +20,54 @@ public class CartQueryService {
     private final CartItemRepository cartItemRepository;
     private final ProductRepository productRepository;
 
+    /** 선택된 ids만 조회 */
     @Transactional(readOnly = true)
     public List<CartItemView> getCartItems(Long userId, String idsParam) {
-        // 1) 인증은 시큐리티가 처리, userId가 null이면 전역 핸들러에서 401 변환
         if (userId == null) {
             throw new org.springframework.security.core.AuthenticationException("UNAUTHORIZED") {};
         }
 
-        // 2) ids 파싱/검증
         List<Long> ids = parseIds(idsParam);
         if (ids.isEmpty()) {
             throw new InvalidInputException("ids는 콤마로 구분된 정수 목록이어야 합니다.");
         }
 
-        // 3) 본인 소유의 장바구니 항목만 조회
         List<CartItem> items = cartItemRepository.findByCartItemIdInAndUserId(ids, userId);
         if (items.isEmpty()) return List.of();
 
-        // 4) product 일괄 조회 후 매핑
+        return toViews(items);
+    }
+
+    /** 전체 장바구니 조회 */
+    @Transactional(readOnly = true)
+    public List<CartItemView> getAllCartItems(Long userId) {
+        if (userId == null) {
+            throw new org.springframework.security.core.AuthenticationException("UNAUTHORIZED") {};
+        }
+        List<CartItem> items = cartItemRepository.findByUserId(userId);
+        if (items.isEmpty()) return List.of();
+        return toViews(items);
+    }
+
+    private List<CartItemView> toViews(List<CartItem> items) {
         Set<Long> productIds = items.stream().map(CartItem::getProductId).collect(Collectors.toSet());
         Map<Long, Product> productMap = productRepository.findAllById(productIds)
-                .stream().collect(Collectors.toMap(p -> p.getId(), p -> p));
+                .stream().collect(Collectors.toMap(Product::getId, p -> p));
 
-        // 5) DTO 변환
         return items.stream().map(ci -> {
             Product p = productMap.get(ci.getProductId());
             if (p == null) {
                 throw new ResourceNotFoundException("상품을 찾을 수 없습니다. (product_id=" + ci.getProductId() + ")");
             }
-            String spec = p.getInfo();
-            CartItemView.Seller seller = new CartItemView.Seller(p.getUserId(), p.getShopName());
-
             return new CartItemView(
                     ci.getCartItemId(),
                     p.getId(),
                     p.getName(),
                     ci.getQuantity(),
-                    ci.getUnitPrice(),         // 담을 당시 스냅샷 단가
+                    ci.getUnitPrice(),        // 담을 당시 스냅샷 단가
                     p.getImageMainUrl(),
-                    seller,
-                    spec
+                    new CartItemView.Seller(p.getUserId(), p.getShopName()),
+                    p.getInfo()
             );
         }).toList();
     }

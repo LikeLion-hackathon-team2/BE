@@ -1,5 +1,7 @@
+// src/main/java/com/hackathon2_BE/pium/entity/ProductImage.java
 package com.hackathon2_BE.pium.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
@@ -9,6 +11,7 @@ import java.time.LocalDateTime;
 
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor @Builder
+@ToString
 @Entity
 @Table(name = "product_image")
 @EntityListeners(AuditingEntityListener.class)
@@ -21,6 +24,8 @@ public class ProductImage {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", foreignKey = @ForeignKey(name = "fk_product_image_product"))
+    @ToString.Exclude
+    @JsonBackReference      // 역참조: 직렬화에서 제외 → 무한 재귀 방지
     private Product product;
 
     @Column(name = "image_url", nullable = false, length = 500)

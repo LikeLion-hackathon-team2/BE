@@ -1,5 +1,7 @@
 package com.hackathon2_BE.pium.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hackathon2_BE.pium.dto.ApiErrorResponse;
 import com.hackathon2_BE.pium.security.CustomUserDetailsService;
 import com.hackathon2_BE.pium.security.JwtAuthenticationFilter;
 import com.hackathon2_BE.pium.security.JwtTokenProvider;
@@ -7,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -20,6 +23,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -28,7 +32,8 @@ import java.util.stream.Collectors;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    // 환경변수 APP_CORS_ALLOWED_ORIGINS로부터 바인딩됨 (예: "https://localhost:5173,https://pium.lion.it.kr")
+    // 예: "https://hack2-pium.vercel.app,http://localhost:5173"
+    // 환경변수 APP_CORS_ALLOWED_ORIGINS 로 매핑됩니다(스프링 relaxed binding).
     @Value("${app.cors.allowed-origins:http://localhost:5173}")
     private String corsAllowedOrigins;
 
@@ -46,35 +51,62 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             JwtTokenProvider tokenProvider,
-            CustomUserDetailsService userDetailsService
+            CustomUserDetailsService userDetailsService,
+            // 자동 구성된 ObjectMapper 주입 (JavaTimeModule 포함)
+            ObjectMapper om
     ) throws Exception {
 
         http
                 .csrf(csrf -> csrf.disable())
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .cors(c -> c.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> {
-                    // Swagger (해커톤 편의상 공개)
-                    auth.requestMatchers(
-                            "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**",
-                            "/swagger-resources/**", "/webjars/**"
-                    ).permitAll();
 
-                    // 헬스체크
-                    auth.requestMatchers("/actuator/health", "/actuator/info").permitAll();
+                // 컨트롤러 진입 전 401/403도 JSON으로
+                .exceptionHandling(e -> e
+                        .authenticationEntryPoint((req, res, ex) -> {
+                            res.setStatus(401);
+                            res.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            res.setCharacterEncoding(StandardCharsets.UTF_8.name());
+                            res.getWriter().write(om.writeValueAsString(
+                                    ApiErrorResponse.of("UNAUTHORIZED", "인증이 필요합니다.")
+                            ));
+                        })
+                        .accessDeniedHandler((req, res, ex) -> {
+                            res.setStatus(403);
+                            res.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            res.setCharacterEncoding(StandardCharsets.UTF_8.name());
+                            res.getWriter().write(om.writeValueAsString(
+                                    ApiErrorResponse.of("FORBIDDEN", "권한이 없습니다.")
+                            ));
+                        })
+                )
 
-                    // Preflight
-                    auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
+                .authorizeHttpRequests(auth -> auth
+                        // Preflight
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                    // 회원가입/로그인
-                    auth.requestMatchers("/api/user/signup", "/api/auth/login").permitAll();
+                        // Actuator / Swagger
+                        .requestMatchers("/actuator/**").permitAll()
+                        .requestMatchers(
+                                "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**",
+                                "/swagger-resources/**", "/webjars/**"
+                        ).permitAll()
 
-                    // 공개 읽기 전용(목록/상세): GET만 허용
-                    auth.requestMatchers(HttpMethod.GET, "/api/product/**", "/api/seller/**").permitAll();
+                        // 정적
+                        .requestMatchers("/uploads/**").permitAll()
 
-                    // 그 외는 인증 필요
-                    auth.anyRequest().authenticated();
-                })
+                        // 공개 엔드포인트
+                        .requestMatchers("/api/user/signup", "/api/auth/login").permitAll()
+
+                        // 공개 조회(READ): GET만 허용
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/product", "/api/product/**",
+                                "/api/events/**"
+                        ).permitAll()
+
+                        // 나머지는 인증
+                        .anyRequest().authenticated()
+                )
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable());
 
@@ -89,14 +121,14 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        List<String> allowedOrigins = Arrays.stream(corsAllowedOrigins.split(","))
+        List<String> origins = Arrays.stream(corsAllowedOrigins.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .collect(Collectors.toList());
 
         CorsConfiguration cfg = new CorsConfiguration();
-        // withCredentials=true → Origin은 * 금지, 정확히 매칭 필요
-        cfg.setAllowedOrigins(allowedOrigins);
+        // 와일드카드/정확 매칭 모두 허용
+        cfg.setAllowedOriginPatterns(origins);
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));
         cfg.setExposedHeaders(List.of("Authorization", "Location", "Content-Disposition"));

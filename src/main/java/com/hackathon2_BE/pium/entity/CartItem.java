@@ -7,22 +7,22 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "cart_item")
-@Getter @Setter
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class CartItem {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-
-    @Column(name = "cartItemId")
-  
+    @Column(name = "cartItemId") // PK (주의: 스네이크케이스 아님)
     private Long cartItemId;
 
     @Column(name = "user_id", nullable = false)        // FK → users.id
     private Long userId;
 
-    @Column(name = "product_id", nullable = false)     // FK → product.productId
+    @Column(name = "product_id", nullable = false)     // FK → product.id
     private Long productId;
 
     @Column(name = "quantity", nullable = false)
@@ -39,7 +39,9 @@ public class CartItem {
 
     @PrePersist
     public void prePersist() {
-        if (createdAt == null) createdAt = LocalDateTime.now();
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
         if (subtotal == null && unitPrice != null && quantity != null) {
             subtotal = unitPrice * quantity;
         }
