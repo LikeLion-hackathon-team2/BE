@@ -1,36 +1,39 @@
 package com.hackathon2_BE.pium.service;
 
-import com.hackathon2_BE.pium.dto.UploadProductImageResponse;
-import com.hackathon2_BE.pium.dto.CreateProductRequest;
+import com.hackathon2_BE.pium.dto.CreateProductRequest;            // ✅ 빠졌던 import
 import com.hackathon2_BE.pium.dto.ProductOptionResponse;
+import com.hackathon2_BE.pium.dto.ProductResponse;                 // DTO 매핑용
 import com.hackathon2_BE.pium.dto.SellerProductListResponse;
-import com.hackathon2_BE.pium.entity.ProductImage;
+import com.hackathon2_BE.pium.dto.UploadProductImageResponse;
 import com.hackathon2_BE.pium.entity.Category;
 import com.hackathon2_BE.pium.entity.Product;
+import com.hackathon2_BE.pium.entity.ProductImage;
 import com.hackathon2_BE.pium.entity.User;
+import com.hackathon2_BE.pium.exception.ForbiddenException;
 import com.hackathon2_BE.pium.exception.InvalidInputException;
 import com.hackathon2_BE.pium.exception.ResourceNotFoundException;
-import com.hackathon2_BE.pium.exception.ForbiddenException;
 import com.hackathon2_BE.pium.exception.UnauthenticatedException;
-import com.hackathon2_BE.pium.repository.ProductImageRepository;
 import com.hackathon2_BE.pium.repository.CategoryRepository;
+import com.hackathon2_BE.pium.repository.ProductImageRepository;
 import com.hackathon2_BE.pium.repository.ProductRepository;
 import com.hackathon2_BE.pium.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.io.IOException;
-import java.nio.file.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -48,6 +51,7 @@ public class ProductService {
     private static final Set<String> ALLOWED_EXT = Set.of("jpg", "jpeg", "png", "webp");
 
     // 2-1) 상품 목록/검색/필터
+    @Transactional(readOnly = true)
     public Page<Product> getProductList(String keyword, Long categoryId, Pageable pageable){
         if (keyword != null && !keyword.isBlank()){
             return productRepository.findByNameContainingIgnoreCaseOrInfoContainingIgnoreCase(keyword, keyword, pageable);
@@ -58,13 +62,27 @@ public class ProductService {
         }
     }
 
+    // 목록 DTO 매핑 헬퍼
+    @Transactional(readOnly = true)
+    public Page<ProductResponse> getProductListDto(String keyword, Long categoryId, Pageable pageable) {
+        return getProductList(keyword, categoryId, pageable).map(ProductResponse::from);
+    }
+
     // 2-2) 상품 상세 정보 조회
+    @Transactional(readOnly = true)
     public Product getProductById(Long id){
         return productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("해당 상품을 찾을 수 없습니다."));
     }
 
+    // 상세 DTO 헬퍼
+    @Transactional(readOnly = true)
+    public ProductResponse getProductResponse(Long id) {
+        return ProductResponse.from(getProductById(id));
+    }
+
     // 3-1) 상품 구매 옵션 조회
+    @Transactional(readOnly = true)
     public ProductOptionResponse getProductOptions(Long productId) {
         Product p = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("해당 상품을 찾을 수 없습니다."));
@@ -210,6 +228,7 @@ public class ProductService {
             UploadProductImageResponse.ProductInfo productDto = UploadProductImageResponse.ProductInfo.builder()
                     .product_id(product.getId())
                     .grade_id(product.getGradeId())
+                    .freshness(toUploadFreshness(product.getGradeId()))
                     .build();
 
             return UploadProductImageResponse.builder()
@@ -243,7 +262,7 @@ public class ProductService {
             switch (status) {
                 case "active", "out_of_stock" -> normalizedStatus = status;
                 case "deleted" -> throw new InvalidInputException("deleted 상태 필터는 아직 지원되지 않습니다.");
-                default -> throw new InvalidInputException("허용되지 않은 상태 값입니다.");
+                default -> throw new InvalidInputException("허용되지 않은 정렬 값입니다.");
             }
         }
 
@@ -266,7 +285,6 @@ public class ProductService {
                 pageable
         );
 
-        // 명시적 타입 + Collectors.toList() 사용
         List<SellerProductListResponse.Item> items = pageResult.getContent().stream()
                 .map(pv -> {
                     SellerProductListResponse.Freshness freshness = (pv.getGradeId() == null) ? null
@@ -289,7 +307,6 @@ public class ProductService {
                             .main_image_url(pv.getImageMainUrl())
                             .freshness(freshness)
                             .created_at(pv.getCreatedAt())
-                            // .updated_at(pv.getUpdatedAt()) // 현재 엔티티에 게터가 없어서 제외
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -315,5 +332,16 @@ public class ProductService {
             case 1 -> "판매임박";
             default -> null;
         };
+    }
+
+    // 업로드 응답용 freshness DTO
+    private UploadProductImageResponse.Freshness toUploadFreshness(Long gradeId) {
+        if (gradeId == null) return null;
+        String label = toFreshnessLabel(gradeId);
+        if (label == null) return null;
+        return UploadProductImageResponse.Freshness.builder()
+                .grade(gradeId.intValue())
+                .label(label)
+                .build();
     }
 }

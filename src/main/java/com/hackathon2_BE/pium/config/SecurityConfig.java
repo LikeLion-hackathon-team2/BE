@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 @EnableWebSecurity
 public class SecurityConfig {
 
+    // 환경변수 APP_CORS_ALLOWED_ORIGINS로부터 바인딩됨 (예: "https://localhost:5173,https://pium.lion.it.kr")
     @Value("${app.cors.allowed-origins:http://localhost:5173}")
     private String corsAllowedOrigins;
 
@@ -94,7 +95,8 @@ public class SecurityConfig {
                 .collect(Collectors.toList());
 
         CorsConfiguration cfg = new CorsConfiguration();
-        cfg.setAllowedOrigins(allowedOrigins); // withCredentials=true → * 금지
+        // withCredentials=true → Origin은 * 금지, 정확히 매칭 필요
+        cfg.setAllowedOrigins(allowedOrigins);
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));
         cfg.setExposedHeaders(List.of("Authorization", "Location", "Content-Disposition"));

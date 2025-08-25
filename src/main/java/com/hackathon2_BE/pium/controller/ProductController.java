@@ -2,13 +2,15 @@ package com.hackathon2_BE.pium.controller;
 
 import com.hackathon2_BE.pium.dto.ApiResponse;
 import com.hackathon2_BE.pium.dto.ProductOptionResponse;
+import com.hackathon2_BE.pium.dto.ProductResponse;
 import com.hackathon2_BE.pium.entity.Product;
 import com.hackathon2_BE.pium.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.*;
-import io.swagger.v3.oas.annotations.responses.ApiResponses; // ← ApiResponses만 import
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.responses.ApiResponses; // ApiResponses만 import (각 ApiResponse는 FQN 사용)
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -16,6 +18,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @Tag(name = "Products", description = "상품 조회/상세/옵션 API")
@@ -31,20 +34,34 @@ public class ProductController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "목록 조회 성공")
     })
     @GetMapping
-    public ResponseEntity<Page<Product>> getProductList(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getProductList(
             @Parameter(description = "검색 키워드", example = "사과") @RequestParam(required = false) String keyword,
             @Parameter(description = "카테고리 ID", example = "1") @RequestParam(required = false) Long categoryId,
             @Parameter(description = "페이지(0-base)", example = "0") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "페이지 크기", example = "10") @RequestParam(defaultValue = "10") int size
     ){
         Pageable pageable = PageRequest.of(page, size);
-        Page<Product> products = productService.getProductList(keyword, categoryId, pageable);
-        return ResponseEntity.ok(products);
+        Page<Product> pageResult = productService.getProductList(keyword, categoryId, pageable);
+
+        List<ProductResponse> items = pageResult.getContent().stream()
+                .map(ProductResponse::from)
+                .toList();
+
+        Map<String, Object> data = Map.of(
+                "items", items,
+                "pagination", Map.of(
+                        "page", page,
+                        "size", size,
+                        "total", pageResult.getTotalElements()
+                )
+        );
+
+        return ResponseEntity.ok(new ApiResponse<>(true, "OK", "목록 조회 성공", data));
     }
 
     @Operation(summary = "상품 상세 조회")
     @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse( // ← FQN
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "200",
                     description = "상세 조회 성공",
                     content = @Content(mediaType = "application/json",
@@ -60,11 +77,10 @@ public class ProductController {
                       "price": 12000,
                       "stockQuantity": 57,
                       "info": "부사/대과",
-                      "category": null,
+                      "categoryId": 5,
                       "gradeId": 3,
-                      "image_main_url": "https://cdn.example.com/p/101.jpg",
-                      "shop_name": "그린농장",
-                      "userId": 77
+                      "freshness": { "grade_id": 3, "grade": 3, "label": "매우 신선" },
+                      "createdAt": "2025-08-22T00:00:00Z"
                     }
                   }
                 }
@@ -72,18 +88,16 @@ public class ProductController {
             )
     })
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Map<String, Product>>> getProduct(
+    public ResponseEntity<ApiResponse<Map<String, ProductResponse>>> getProduct(
             @Parameter(description = "상품 ID", example = "101") @PathVariable Long id){
         Product product = productService.getProductById(id);
-        Map<String, Product> data = Map.of("product", product);
-        ApiResponse<Map<String, Product>> response =
-                new ApiResponse<>(true, "OK", "상세 조회 성공", data);
-        return ResponseEntity.ok(response);
+        Map<String, ProductResponse> data = Map.of("product", ProductResponse.from(product));
+        return ResponseEntity.ok(new ApiResponse<>(true, "OK", "상세 조회 성공", data));
     }
 
     @Operation(summary = "상품 옵션 조회", description = "수량 한도, 단위 가격, 프리셋 등 구매 옵션을 제공합니다.")
     @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse( // ← FQN
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "200",
                     description = "옵션 조회 성공",
                     content = @Content(mediaType = "application/json",
@@ -108,7 +122,6 @@ public class ProductController {
     public ResponseEntity<ApiResponse<ProductOptionResponse>> getOptions(
             @Parameter(description = "상품 ID", example = "101") @PathVariable Long id) {
         ProductOptionResponse data = productService.getProductOptions(id);
-        var body = new ApiResponse<>(true, "OK", "옵션 정보", data);
-        return ResponseEntity.ok(body);
+        return ResponseEntity.ok(new ApiResponse<>(true, "OK", "옵션 정보", data));
     }
 }
