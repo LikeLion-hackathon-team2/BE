@@ -41,6 +41,7 @@ public class ProductService {
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
     private final ProductImageRepository productImageRepository;
+    private final FastApiClient fastApiClient;
 
     @Value("${app.upload.dir:uploads}")
     private String uploadRootDir;
@@ -153,7 +154,7 @@ public class ProductService {
             throw new InvalidInputException("파일이 비어있습니다.");
         }
 
-        // 파일 검증 (확장자)
+        // 파일 확장자 검증
         String original = file.getOriginalFilename();
         String ext = (original != null && original.contains(".")) ?
                 original.substring(original.lastIndexOf('.') + 1).toLowerCase() : "";
@@ -168,8 +169,8 @@ public class ProductService {
             throw new ForbiddenException("해당 상품의 소유자가 아닙니다.");
         }
 
-        // 저장 경로 준비
         try {
+            // 저장 경로 준비
             Path dir = Paths.get(uploadRootDir, "products", String.valueOf(productId)).toAbsolutePath();
             Files.createDirectories(dir);
 
@@ -179,10 +180,10 @@ public class ProductService {
             // 저장
             file.transferTo(dest.toFile());
 
-            // 정적 접근 URL 구성 (/uploads/** 로 매핑)
+            // 정적 접근 URL 구성 (/uploads/** 매핑)
             String url = "/uploads/products/" + productId + "/" + newName;
 
-            // 대표 이미지 플래그 정리
+            // 대표 이미지 플래그 처리
             if (isMain) {
                 productImageRepository.clearMainByProductId(productId);
                 product.setImageMainUrl(url);
@@ -199,7 +200,7 @@ public class ProductService {
                             .build()
             );
 
-            // 응답 DTO 구성 (AI는 미적용)
+            // 기본 응답 DTO
             UploadProductImageResponse.Image imageDto = UploadProductImageResponse.Image.builder()
                     .image_id(saved.getId())
                     .image_url(saved.getImageUrl())
@@ -210,7 +211,33 @@ public class ProductService {
             UploadProductImageResponse.ProductInfo productDto = UploadProductImageResponse.ProductInfo.builder()
                     .product_id(product.getId())
                     .grade_id(product.getGradeId())
+                    .freshness(null)
                     .build();
+
+            // 🔥 AI 호출 (선택적)
+            if (runAi) {
+                var aiResult = fastApiClient.sendToFastApi(file);
+                if (aiResult != null && aiResult.getFreshness() != null) {
+                    var f = aiResult.getFreshness();
+
+                    Long grade = f.getGrade(); // ← 위 ①을 적용했으면 그대로 Long
+
+                    product.setGradeId(grade);
+                    productRepository.save(product);
+
+                    productDto.setGrade_id(grade);
+
+                    // FastAPI FreshnessDto -> UploadProductImageResponse.Freshness 로 변환
+                    UploadProductImageResponse.Freshness freshness =
+                            UploadProductImageResponse.Freshness.builder()
+                                    .grade(grade)
+                                    .label(f.getLabel())
+                                    .build();
+                    productDto.setFreshness(freshness);
+
+                    imageDto.setAi_processed(true);
+                }
+            }
 
             return UploadProductImageResponse.builder()
                     .image(imageDto)
@@ -218,7 +245,7 @@ public class ProductService {
                     .build();
 
         } catch (IOException e) {
-            throw new RuntimeException("파일 저장 중 오류가 발생했습니다.", e);
+            throw new RuntimeException("파일 저장 중 오류 발생", e);
         }
     }
 
